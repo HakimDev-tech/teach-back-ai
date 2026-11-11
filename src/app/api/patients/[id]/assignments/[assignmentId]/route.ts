@@ -9,8 +9,8 @@ const paramsSchema = z.object({ id: z.string().uuid(), assignmentId: z.string().
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string; assignmentId: string }> }) {
   return apiRoute(async () => {
     const { supabase } = await requireAuthenticatedClient();
-    const { assignmentId } = paramsSchema.parse(await context.params);
-    await new PatientService(new PatientRepository(supabase)).revoke(assignmentId);
+    const { id, assignmentId } = paramsSchema.parse(await context.params);
+    await new PatientService(new PatientRepository(supabase)).revoke(assignmentId, id);
     return new NextResponse(null, { status: 204 });
   });
 }

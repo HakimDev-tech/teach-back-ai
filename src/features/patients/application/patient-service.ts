@@ -19,7 +19,7 @@ export class PatientService {
     return this.patients.assign(input);
   }
 
-  revoke(assignmentId: string) {
-    return this.patients.revoke(assignmentId);
+  revoke(assignmentId: string, patientId: string) {
+    return this.patients.revoke(assignmentId, patientId);
   }
 }

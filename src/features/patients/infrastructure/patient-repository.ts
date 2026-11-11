@@ -44,7 +44,16 @@ export class PatientRepository {
     return data;
   }
 
-  async revoke(assignmentId: string) {
+  async revoke(assignmentId: string, patientId: string) {
+    const { data, error: lookupError } = await this.db
+      .from("patient_clinician_assignments")
+      .select("patient_id")
+      .eq("id", assignmentId)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (!data || data.patient_id !== patientId) {
+      throw { code: "P0002" };
+    }
     const { error } = await this.db.rpc("revoke_patient_assignment", {
       target_assignment: assignmentId,
     });
