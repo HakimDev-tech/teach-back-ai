@@ -12,8 +12,8 @@ select ok(to_regprocedure('public.create_organization(text,text)') is not null, 
 select ok(to_regprocedure('public.transfer_organization_ownership(uuid,uuid)') is not null, 'controlled ownership transfer exists');
 select ok(not has_function_privilege('anon', 'public.create_organization(text,text)', 'execute'), 'anon cannot create organizations');
 select ok(not has_function_privilege('anon', 'public.transfer_organization_ownership(uuid,uuid)', 'execute'), 'anon cannot transfer ownership');
-select ok(not has_table('public', 'patients'), 'patient tables deferred from Phase A');
-select ok(not has_table('public', 'care_plans'), 'care-plan tables deferred from Phase A');
+select ok(to_regclass('public.patients') is null, 'patient tables deferred from Phase A');
+select ok(to_regclass('public.care_plans') is null, 'care-plan tables deferred from Phase A');
 select ok(not has_table_privilege('anon', 'public.profiles', 'select'), 'anon has no profile SELECT grant');
 select ok(not has_table_privilege('anon', 'public.organizations', 'select'), 'anon has no organization SELECT grant');
 select * from finish();
