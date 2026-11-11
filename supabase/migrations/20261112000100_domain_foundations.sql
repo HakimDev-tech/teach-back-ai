@@ -231,6 +231,20 @@ grant execute on function private.can_access_session(uuid,uuid) to authenticated
 
 
 -- Common timestamp trigger.
+create or replace function private.guard_patient_identity()
+returns trigger language plpgsql set search_path = '' as $
+begin
+  if new.organization_id is distinct from old.organization_id or new.id is distinct from old.id
+    or new.created_by is distinct from old.created_by or new.created_at is distinct from old.created_at then
+    raise exception 'patient identity and tenant ownership are immutable' using errcode='55000';
+  end if;
+  if old.status='archived' and new.status <> 'archived' then
+    raise exception 'archived patient records cannot be reopened' using errcode='23514';
+  end if;
+  return new;
+end;
+$;
+create trigger patients_identity before update on public.patients for each row execute function private.guard_patient_identity();
 create trigger patients_set_updated_at before update on public.patients for each row execute function private.set_updated_at();
 create trigger assignments_set_updated_at before update on public.patient_clinician_assignments for each row execute function private.set_updated_at();
 create trigger care_plans_set_updated_at before update on public.care_plans for each row execute function private.set_updated_at();
@@ -300,6 +314,12 @@ begin
   if old.status='archived' and new.status <> 'archived' then
     raise exception 'archived care plans cannot be reopened' using errcode='23514';
   end if;
+  if old.status='draft' and new.status not in ('draft','active','archived') then
+    raise exception 'invalid care plan transition' using errcode='23514';
+  end if;
+  if old.status='active' and new.status not in ('active','archived') then
+    raise exception 'invalid care plan transition' using errcode='23514';
+  end if;
   return new;
 end;
 $;
@@ -324,9 +344,10 @@ $$;
 create or replace function private.validate_session_instruction()
 returns trigger language plpgsql set search_path = '' as $
 begin
-  if not exists (select 1 from public.instruction_versions v
-    where v.organization_id=new.organization_id and v.instruction_item_id=new.instruction_item_id
-      and v.id=new.instruction_version_id and v.status='approved') then
+  perform 1 from public.instruction_versions v where v.organization_id=new.organization_id
+    and v.instruction_item_id=new.instruction_item_id and v.id=new.instruction_version_id
+    and v.status='approved' for share;
+  if not found then
     raise exception 'session snapshot requires an approved instruction version' using errcode='23514';
   end if;
   return new;
@@ -338,15 +359,17 @@ create trigger session_instructions_immutable before insert or update or delete 
 for each row execute function private.guard_session_snapshot();
 
 create or replace function private.guard_question()
-returns trigger language plpgsql set search_path = '' as $$
-declare current_status text;
+returns trigger language plpgsql set search_path = '' as $
+declare current_status text; target_session uuid; target_org uuid;
 begin
+  target_session := case when tg_op='DELETE' then old.session_id else new.session_id end;
+  target_org := case when tg_op='DELETE' then old.organization_id else new.organization_id end;
   select s.status into current_status from public.teachback_sessions s
-   where s.id = old.session_id and s.organization_id = old.organization_id for update;
-  if tg_op = 'DELETE' or current_status <> 'draft' then
-    raise exception 'questions cannot be changed after session leaves draft' using errcode = '55000';
+   where s.id=target_session and s.organization_id=target_org for update;
+  if tg_op='DELETE' or current_status <> 'draft' then
+    raise exception 'questions cannot be changed after session leaves draft' using errcode='55000';
   end if;
-  if old.status = 'approved' and (
+  if tg_op='UPDATE' and old.status='approved' and (
     new.question_text is distinct from old.question_text
     or new.position is distinct from old.position
     or new.instruction_version_id is distinct from old.instruction_version_id
@@ -356,12 +379,12 @@ begin
     or new.approved_by is distinct from old.approved_by
     or new.approved_at is distinct from old.approved_at
   ) then
-    raise exception 'approved questions are immutable' using errcode = '55000';
+    raise exception 'approved questions are immutable' using errcode='55000';
   end if;
   return new;
 end;
-$$;
-create trigger questions_immutable before update or delete on public.questions
+$;
+create trigger questions_immutable before insert or update or delete on public.questions
 for each row execute function private.guard_question();
 
 create or replace function private.guard_session_status()
@@ -491,12 +514,15 @@ revoke all on function public.create_instruction_version(uuid,text) from public,
 grant execute on function public.create_instruction_version(uuid,text) to authenticated;
 
 create or replace function public.approve_instruction_version(target_version uuid)
-returns void language plpgsql security definer set search_path = '' as $$
+returns void language plpgsql security definer set search_path = '' as $
 declare target_org uuid; target_item uuid; current_status text;
 begin
-  select v.organization_id,v.instruction_item_id,v.status
-    into target_org,target_item,current_status
-    from public.instruction_versions v where v.id=target_version for update;
+  select v.organization_id,v.instruction_item_id into target_org,target_item
+    from public.instruction_versions v where v.id=target_version;
+  if target_org is null then raise exception 'instruction version not found' using errcode='P0002'; end if;
+  perform 1 from public.instruction_items i where i.organization_id=target_org and i.id=target_item for update;
+  select v.status into current_status from public.instruction_versions v
+    where v.id=target_version and v.organization_id=target_org for update;
   if target_org is null or not exists (
     select 1 from public.care_plans c join public.instruction_items i
       on i.organization_id=c.organization_id and i.care_plan_id=c.id
@@ -518,11 +544,17 @@ revoke all on function public.approve_instruction_version(uuid) from public,anon
 grant execute on function public.approve_instruction_version(uuid) to authenticated;
 
 create or replace function public.approve_question(target_question uuid)
-returns void language plpgsql security definer set search_path = '' as $$
+returns void language plpgsql security definer set search_path = '' as $
 declare target_org uuid; target_session uuid; target_status text;
 begin
-  select q.organization_id,q.session_id,q.status into target_org,target_session,target_status
-   from public.questions q where q.id=target_question for update;
+  select q.organization_id,q.session_id into target_org,target_session
+   from public.questions q where q.id=target_question;
+  if target_org is null or not private.can_access_session(target_org,target_session) then
+    raise exception 'question not found' using errcode='P0002';
+  end if;
+  perform 1 from public.teachback_sessions s where s.organization_id=target_org and s.id=target_session for update;
+  select q.status into target_status from public.questions q
+   where q.id=target_question and q.organization_id=target_org for update;
   if target_org is null or not private.can_access_session(target_org,target_session) then
     raise exception 'question not found' using errcode='P0002';
   end if;
@@ -646,16 +678,21 @@ revoke all on function public.save_response_draft(uuid,uuid,uuid,text,integer) f
 grant execute on function public.save_response_draft(uuid,uuid,uuid,text,integer) to authenticated;
 
 create or replace function public.submit_response(target_response uuid)
-returns uuid language plpgsql security definer set search_path = '' as $$
-declare r public.responses%rowtype; session_status text;
+returns uuid language plpgsql security definer set search_path = '' as $
+declare r public.responses%rowtype; session_status text; target_org uuid; target_session uuid;
 begin
+  select organization_id,session_id into target_org,target_session
+    from public.responses where id=target_response;
+  if target_org is null or not private.can_access_session(target_org,target_session) then
+    raise exception 'response not found' using errcode='P0002';
+  end if;
+  select s.status into session_status from public.teachback_sessions s
+   where s.id=target_session and s.organization_id=target_org for update;
   select * into r from public.responses where id=target_response for update;
-  if r.id is null or not private.can_access_session(r.organization_id,r.session_id) then
+  if r.id is null or r.organization_id<>target_org or r.session_id<>target_session then
     raise exception 'response not found' using errcode='P0002';
   end if;
   if r.status='submitted' then return r.id; end if;
-  select s.status into session_status from public.teachback_sessions s
-   where s.id=r.session_id and s.organization_id=r.organization_id for update;
   if session_status <> 'in_progress' then raise exception 'session is not accepting responses' using errcode='23514'; end if;
   if not exists (select 1 from public.questions q where q.id=r.question_id
     and q.organization_id=r.organization_id and q.session_id=r.session_id and q.status='approved') then
@@ -686,9 +723,11 @@ revoke all on table public.patients,public.patient_clinician_assignments,public.
 grant select on public.patients to authenticated;
 grant update (full_name,preferred_language,status) on public.patients to authenticated;
 grant select on public.patient_clinician_assignments to authenticated;
-grant select,insert on public.care_plans to authenticated;
+grant select on public.care_plans to authenticated;
+grant insert (organization_id,patient_id,title,created_by) on public.care_plans to authenticated;
 grant update (title,status) on public.care_plans to authenticated;
-grant select,insert on public.instruction_items to authenticated;
+grant select on public.instruction_items to authenticated;
+grant insert (organization_id,care_plan_id) on public.instruction_items to authenticated;
 grant select on public.instruction_versions to authenticated;
 grant select on public.teachback_sessions to authenticated;
 grant insert (organization_id,patient_id,care_plan_id,created_by,expires_at) on public.teachback_sessions to authenticated;
@@ -696,8 +735,7 @@ grant select on public.session_instructions to authenticated;
 grant insert (organization_id,session_id,instruction_item_id,instruction_version_id) on public.session_instructions to authenticated;
 grant select on public.questions to authenticated;
 grant insert (organization_id,session_id,instruction_item_id,instruction_version_id,question_text,position,created_by) on public.questions to authenticated;
-grant select,insert on public.responses to authenticated;
-grant insert (organization_id,session_id,question_id,attempt_number,idempotency_key,response_text,recorded_by) on public.responses to authenticated;
+grant select on public.responses to authenticated;
 grant update (response_text) on public.responses to authenticated;
 
 create policy patients_select_assigned on public.patients for select to authenticated
