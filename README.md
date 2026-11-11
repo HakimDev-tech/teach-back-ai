@@ -45,6 +45,12 @@ Generated types are written to `src/types/database.types.ts`. Regenerate after e
 - `npm test`
 - `npm run build`
 
+## Phase B domain boundary
+
+The authenticated API currently exposes internal clinician operations for patient creation/listing, assignment management, care plans, instruction versioning/approval, session preparation/transitions, question approval, and response draft/submission. PostgreSQL constraints, RPCs, GRANTs, and RLS enforce the critical invariants. Response capture is not patient self-service: do not expose these routes to anonymous users or treat a clinician session as patient authentication.
+
+There is no AI functionality in Phase B. The application does not diagnose, prescribe, change treatment, or make discharge/safety decisions. Instruction and question approval remain clinician actions.
+
 ## Authentication foundation
 Sign-up creates an Auth identity; a database trigger provisions a minimal profile. Registration does not grant an organization membership or professional role. Organization creation and owner transfer are controlled PostgreSQL functions.
 
@@ -52,6 +58,10 @@ Sign-up creates an Auth identity; a database trigger provisions a minimal profil
 - [Overview](docs/architecture/overview.md)
 - [Database foundations](docs/architecture/database-foundations.md)
 - [Security model](docs/architecture/security-model.md)
+- [Domain model](docs/architecture/domain-model.md)
+- [Domain workflows](docs/architecture/domain-workflows.md)
+- [Data integrity](docs/architecture/data-integrity.md)
+- [Domain authorization](docs/architecture/domain-authorization.md)
 
 ## Verification status
 The remote foundation commit is not yet locally executed against Supabase or built with npm. The committed CI workflow is intended to perform those checks. A generated npm lockfile and generated database types must be produced and committed from a provisioned development environment before reproducible installation can be claimed. Do not use real patient data.
