@@ -1,5 +1,5 @@
 begin;
-select plan(43);
+select plan(42);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
