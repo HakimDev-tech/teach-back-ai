@@ -1,7 +1,7 @@
 # Data integrity — Phase B
 
 ## Tenant and relational integrity
-All clinical tables carry `organization_id`. Composite foreign keys bind patient, care plan, assignment, instruction, session, question, and response relationships to the same tenant. The question-to-snapshot relationship also binds the instruction item and version, preventing a version from being paired with a different item.
+All clinical tables carry `organization_id`. Composite foreign keys bind patient, care plan, assignment, instruction, session, question, and response relationships to the same tenant. A database trigger also ensures a session snapshot references an instruction version from that exact patient, not merely another patient in the same organization. The question-to-snapshot relationship also binds the instruction item and version, preventing a version from being paired with a different item.
 
 Deletion of clinical parents is restricted. Assignments are revoked; patients and care plans are archived. Session snapshots and instruction versions are retained. Submitted responses cannot be updated or deleted by normal application roles.
 

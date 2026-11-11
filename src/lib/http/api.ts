@@ -55,6 +55,7 @@ export async function apiRoute(
         : "";
     const mapped: Record<string, { status: number; code: string; message: string }> = {
       "42501": { status: 403, code: "FORBIDDEN", message: "This operation is not permitted." },
+      PGRST116: { status: 404, code: "RESOURCE_NOT_FOUND", message: "The requested resource was not found." },
       P0002: { status: 404, code: "RESOURCE_NOT_FOUND", message: "The requested resource was not found." },
       "40001": { status: 409, code: "SESSION_VERSION_CONFLICT", message: "The resource changed. Reload and retry." },
       "23505": { status: 409, code: "DUPLICATE_SUBMISSION", message: "A conflicting record already exists." },
