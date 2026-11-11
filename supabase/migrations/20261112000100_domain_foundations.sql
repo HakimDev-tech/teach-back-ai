@@ -187,14 +187,14 @@ create index responses_question_attempt_idx on public.responses (organization_id
 create or replace function private.can_manage_assignments(target_org uuid)
 returns boolean
 language sql stable security definer set search_path = ''
-as $$
+as $body$
   select private.has_org_role(target_org, array['owner','admin']::text[]);
-$$;
+$body$;
 
 create or replace function private.can_access_patient(target_org uuid, target_patient uuid)
 returns boolean
 language sql stable security definer set search_path = ''
-as $$
+as $body$
   select exists (
     select 1
     from public.patient_clinician_assignments a
@@ -208,19 +208,19 @@ as $$
       and m.role = 'clinician'
       and m.status = 'active'
   );
-$$;
+$body$;
 
 create or replace function private.can_access_session(target_org uuid, target_session uuid)
 returns boolean
 language sql stable security definer set search_path = ''
-as $$
+as $body$
   select exists (
     select 1 from public.teachback_sessions s
     where s.organization_id = target_org
       and s.id = target_session
       and private.can_access_patient(s.organization_id, s.patient_id)
   );
-$$;
+$body$;
 
 revoke all on function private.can_manage_assignments(uuid) from public, anon;
 revoke all on function private.can_access_patient(uuid,uuid) from public, anon;
@@ -243,7 +243,7 @@ begin
   end if;
   return new;
 end;
-$$;
+$body$;
 create trigger patients_identity before update on public.patients for each row execute function private.guard_patient_identity();
 create trigger patients_set_updated_at before update on public.patients for each row execute function private.set_updated_at();
 create trigger assignments_set_updated_at before update on public.patient_clinician_assignments for each row execute function private.set_updated_at();
@@ -274,7 +274,7 @@ begin
   end if;
   return new;
 end;
-$$;
+$body$;
 create trigger assignments_validate before insert or update of organization_id,clinician_user_id,status,assigned_by
 on public.patient_clinician_assignments for each row execute function private.validate_patient_assignment();
 
@@ -300,7 +300,7 @@ begin
   end if;
   return new;
 end;
-$$;
+$body$;
 create trigger instruction_versions_immutable before update or delete on public.instruction_versions
 for each row execute function private.guard_instruction_version();
 
@@ -322,7 +322,7 @@ begin
   end if;
   return new;
 end;
-$$;
+$body$;
 create trigger care_plans_identity before update on public.care_plans
 for each row execute function private.guard_care_plan_identity();
 
@@ -340,7 +340,7 @@ begin
   if tg_op = 'DELETE' then return old; end if;
   return new;
 end;
-$$;
+$body$;
 create or replace function private.validate_session_instruction()
 returns trigger language plpgsql set search_path = '' as $
 begin
@@ -352,7 +352,7 @@ begin
   end if;
   return new;
 end;
-$$;
+$body$;
 create trigger session_instructions_validate before insert on public.session_instructions
 for each row execute function private.validate_session_instruction();
 create trigger session_instructions_immutable before insert or update or delete on public.session_instructions
@@ -383,7 +383,7 @@ begin
   end if;
   return new;
 end;
-$$;
+$body$;
 create trigger questions_immutable before insert or update or delete on public.questions
 for each row execute function private.guard_question();
 
@@ -399,7 +399,7 @@ begin
   end if;
   return new;
 end;
-$$;
+$body$;
 create trigger sessions_identity_immutable before update on public.teachback_sessions
 for each row execute function private.guard_session_status();
 
@@ -423,7 +423,7 @@ begin
   end if;
   return new;
 end;
-$$;
+$body$;
 create trigger responses_immutable before update or delete on public.responses
 for each row execute function private.guard_response();
 
@@ -447,7 +447,7 @@ begin
   values (target_org,patient_id,caller_id,'active',caller_id);
   return patient_id;
 end;
-$$;
+$body$;
 revoke all on function public.create_patient(uuid,text,text) from public,anon;
 grant execute on function public.create_patient(uuid,text,text) to authenticated;
 
@@ -469,7 +469,7 @@ begin
   returning id into assignment_id;
   return assignment_id;
 end;
-$$;
+$body$;
 revoke all on function public.assign_patient_clinician(uuid,uuid,uuid) from public,anon;
 grant execute on function public.assign_patient_clinician(uuid,uuid,uuid) to authenticated;
 
@@ -485,7 +485,7 @@ begin
   update public.patient_clinician_assignments set status='revoked'
    where id=target_assignment and status='active';
 end;
-$$;
+$body$;
 revoke all on function public.revoke_patient_assignment(uuid) from public,anon;
 grant execute on function public.revoke_patient_assignment(uuid) to authenticated;
 
@@ -509,7 +509,7 @@ begin
   returning id into new_version;
   return new_version;
 end;
-$$;
+$body$;
 revoke all on function public.create_instruction_version(uuid,text) from public,anon;
 grant execute on function public.create_instruction_version(uuid,text) to authenticated;
 
@@ -539,7 +539,7 @@ begin
   update public.instruction_versions set status='approved',approved_by=auth.uid(),approved_at=pg_catalog.now()
    where id=target_version;
 end;
-$$;
+$body$;
 revoke all on function public.approve_instruction_version(uuid) from public,anon;
 grant execute on function public.approve_instruction_version(uuid) to authenticated;
 
@@ -562,7 +562,7 @@ begin
   update public.questions set status='approved',approved_by=auth.uid(),approved_at=pg_catalog.now()
    where id=target_question;
 end;
-$$;
+$body$;
 revoke all on function public.approve_question(uuid) from public,anon;
 grant execute on function public.approve_question(uuid) to authenticated;
 
@@ -636,7 +636,7 @@ begin
   where id=target_session;
   return expected_version+1;
 end;
-$$;
+$body$;
 revoke all on function public.transition_session(uuid,integer,text) from public,anon;
 grant execute on function public.transition_session(uuid,integer,text) to authenticated;
 
@@ -673,7 +673,7 @@ begin
   returning id into new_id;
   return new_id;
 end;
-$$;
+$body$;
 revoke all on function public.save_response_draft(uuid,uuid,uuid,text,integer) from public,anon;
 grant execute on function public.save_response_draft(uuid,uuid,uuid,text,integer) to authenticated;
 
@@ -701,7 +701,7 @@ begin
   update public.responses set status='submitted',submitted_at=pg_catalog.now() where id=r.id;
   return r.id;
 end;
-$$;
+$body$;
 revoke all on function public.submit_response(uuid) from public,anon;
 grant execute on function public.submit_response(uuid) to authenticated;
 
