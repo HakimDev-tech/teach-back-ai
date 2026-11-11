@@ -3,7 +3,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export class SessionRepository {
   constructor(private readonly db: SupabaseClient) {}
 
-  async create(input: { organizationId: string; patientId: string; carePlanId: string | null; userId: string; expiresAt: string | null }) {
+  async create(input: {
+    organizationId: string;
+    patientId: string;
+    carePlanId: string | null;
+    userId: string;
+    expiresAt: string | null;
+  }) {
     const { data, error } = await this.db
       .from("teachback_sessions")
       .insert({
@@ -45,7 +51,10 @@ export class SessionRepository {
     return data;
   }
 
-  async updateQuestion(questionId: string, input: { questionText: string; position: number }) {
+  async updateQuestion(
+    questionId: string,
+    input: { questionText: string; position: number },
+  ) {
     const { data, error } = await this.db
       .from("questions")
       .update({ question_text: input.questionText, position: input.position })
@@ -58,11 +67,17 @@ export class SessionRepository {
   }
 
   async approveQuestion(questionId: string) {
-    const { error } = await this.db.rpc("approve_question", { target_question: questionId });
+    const { error } = await this.db.rpc("approve_question", {
+      target_question: questionId,
+    });
     if (error) throw error;
   }
 
-  async transition(sessionId: string, expectedVersion: number, targetStatus: string) {
+  async transition(
+    sessionId: string,
+    expectedVersion: number,
+    targetStatus: string,
+  ) {
     const { data, error } = await this.db.rpc("transition_session", {
       target_session: sessionId,
       expected_version: expectedVersion,
@@ -71,6 +86,7 @@ export class SessionRepository {
     if (error) throw error;
     return data;
   }
+
   async addInstructionSnapshot(input: {
     organizationId: string;
     sessionId: string;
@@ -90,5 +106,4 @@ export class SessionRepository {
     if (error) throw error;
     return data;
   }
-
 }

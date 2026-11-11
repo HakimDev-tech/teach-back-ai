@@ -3,7 +3,13 @@ import { SessionRepository } from "@/features/sessions/infrastructure/session-re
 export class SessionService {
   constructor(private readonly sessions: SessionRepository) {}
 
-  create(input: { organizationId: string; patientId: string; carePlanId: string | null; userId: string; expiresAt: string | null }) {
+  create(input: {
+    organizationId: string;
+    patientId: string;
+    carePlanId: string | null;
+    userId: string;
+    expiresAt: string | null;
+  }) {
     return this.sessions.create(input);
   }
 
@@ -19,7 +25,10 @@ export class SessionService {
     return this.sessions.addQuestion(input);
   }
 
-  updateQuestion(questionId: string, input: { questionText: string; position: number }) {
+  updateQuestion(
+    questionId: string,
+    input: { questionText: string; position: number },
+  ) {
     return this.sessions.updateQuestion(questionId, input);
   }
 
@@ -27,9 +36,14 @@ export class SessionService {
     return this.sessions.approveQuestion(questionId);
   }
 
-  transition(sessionId: string, expectedVersion: number, targetStatus: string) {
+  transition(
+    sessionId: string,
+    expectedVersion: number,
+    targetStatus: string,
+  ) {
     return this.sessions.transition(sessionId, expectedVersion, targetStatus);
   }
+
   addInstructionSnapshot(input: {
     organizationId: string;
     sessionId: string;
@@ -38,5 +52,4 @@ export class SessionService {
   }) {
     return this.sessions.addInstructionSnapshot(input);
   }
-
 }

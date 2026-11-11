@@ -11,12 +11,17 @@ const bodySchema = z.object({
   instructionVersionId: z.string().uuid(),
 });
 
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
   return apiRoute(async () => {
     const { supabase } = await requireAuthenticatedClient();
     const { id } = paramsSchema.parse(await context.params);
     const body = bodySchema.parse(await request.json());
-    const snapshot = await new SessionService(new SessionRepository(supabase)).addInstructionSnapshot({
+    const snapshot = await new SessionService(
+      new SessionRepository(supabase),
+    ).addInstructionSnapshot({
       organizationId: body.organizationId,
       sessionId: id,
       instructionItemId: body.instructionItemId,
