@@ -28,6 +28,8 @@ jobs:
         run: supabase start
       - name: Apply migrations from a clean database
         run: supabase db reset
+      - name: Database lint
+        run: npm run db:lint
       - name: Run pgTAP security tests
         run: supabase test db
       - name: Generate database types from the local schema

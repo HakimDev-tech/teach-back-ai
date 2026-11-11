@@ -795,7 +795,8 @@ using (exists (select 1 from public.care_plans c where c.organization_id=instruc
  and private.can_access_patient(c.organization_id,c.patient_id)));
 create policy instruction_items_insert_assigned on public.instruction_items for insert to authenticated
 with check (exists (select 1 from public.care_plans c where c.organization_id=instruction_items.organization_id
- and c.id=instruction_items.care_plan_id and private.can_access_patient(c.organization_id,c.patient_id)));
+ and c.id=instruction_items.care_plan_id and c.status <> 'archived'
+ and private.can_access_patient(c.organization_id,c.patient_id)));
 
 create policy instruction_versions_select_assigned on public.instruction_versions for select to authenticated
 using (exists (select 1 from public.instruction_items i join public.care_plans c
