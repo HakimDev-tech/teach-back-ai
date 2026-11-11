@@ -30,4 +30,13 @@ export class SessionService {
   transition(sessionId: string, expectedVersion: number, targetStatus: string) {
     return this.sessions.transition(sessionId, expectedVersion, targetStatus);
   }
+  addInstructionSnapshot(input: {
+    organizationId: string;
+    sessionId: string;
+    instructionItemId: string;
+    instructionVersionId: string;
+  }) {
+    return this.sessions.addInstructionSnapshot(input);
+  }
+
 }
