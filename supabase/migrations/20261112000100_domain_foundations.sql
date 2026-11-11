@@ -232,7 +232,7 @@ grant execute on function private.can_access_session(uuid,uuid) to authenticated
 
 -- Common timestamp trigger.
 create or replace function private.guard_patient_identity()
-returns trigger language plpgsql set search_path = '' as $
+returns trigger language plpgsql set search_path = '' as $body$
 begin
   if new.organization_id is distinct from old.organization_id or new.id is distinct from old.id
     or new.created_by is distinct from old.created_by or new.created_at is distinct from old.created_at then
@@ -254,7 +254,7 @@ create trigger responses_set_updated_at before update on public.responses for ea
 
 -- Validate assignment membership at write time; a revoked membership cannot be newly assigned.
 create or replace function private.validate_patient_assignment()
-returns trigger language plpgsql set search_path = '' as $$
+returns trigger language plpgsql set search_path = '' as $body$
 begin
   if new.status = 'active' and not exists (
     select 1 from public.organization_memberships m
@@ -280,7 +280,7 @@ on public.patient_clinician_assignments for each row execute function private.va
 
 -- Approved instruction content and provenance are immutable. Only status may move to superseded/archive.
 create or replace function private.guard_instruction_version()
-returns trigger language plpgsql set search_path = '' as $$
+returns trigger language plpgsql set search_path = '' as $body$
 begin
   if old.status in ('approved','superseded','archived') then
     if new.organization_id is distinct from old.organization_id
@@ -305,7 +305,7 @@ create trigger instruction_versions_immutable before update or delete on public.
 for each row execute function private.guard_instruction_version();
 
 create or replace function private.guard_care_plan_identity()
-returns trigger language plpgsql set search_path = '' as $
+returns trigger language plpgsql set search_path = '' as $body$
 begin
   if new.organization_id is distinct from old.organization_id or new.patient_id is distinct from old.patient_id
     or new.created_by is distinct from old.created_by or new.created_at is distinct from old.created_at then
@@ -327,7 +327,7 @@ create trigger care_plans_identity before update on public.care_plans
 for each row execute function private.guard_care_plan_identity();
 
 create or replace function private.guard_session_snapshot()
-returns trigger language plpgsql set search_path = '' as $$
+returns trigger language plpgsql set search_path = '' as $body$
 declare target_session uuid; target_org uuid; current_status text;
 begin
   target_session := case when tg_op = 'DELETE' then old.session_id else new.session_id end;
@@ -342,7 +342,7 @@ begin
 end;
 $body$;
 create or replace function private.validate_session_instruction()
-returns trigger language plpgsql set search_path = '' as $
+returns trigger language plpgsql set search_path = '' as $body$
 begin
   perform 1 from public.instruction_versions v where v.organization_id=new.organization_id
     and v.instruction_item_id=new.instruction_item_id and v.id=new.instruction_version_id
@@ -359,7 +359,7 @@ create trigger session_instructions_immutable before insert or update or delete 
 for each row execute function private.guard_session_snapshot();
 
 create or replace function private.guard_question()
-returns trigger language plpgsql set search_path = '' as $
+returns trigger language plpgsql set search_path = '' as $body$
 declare current_status text; target_session uuid; target_org uuid;
 begin
   target_session := case when tg_op='DELETE' then old.session_id else new.session_id end;
@@ -388,7 +388,7 @@ create trigger questions_immutable before insert or update or delete on public.q
 for each row execute function private.guard_question();
 
 create or replace function private.guard_session_status()
-returns trigger language plpgsql set search_path = '' as $$
+returns trigger language plpgsql set search_path = '' as $body$
 begin
   if new.organization_id is distinct from old.organization_id
     or new.patient_id is distinct from old.patient_id
@@ -404,7 +404,7 @@ create trigger sessions_identity_immutable before update on public.teachback_ses
 for each row execute function private.guard_session_status();
 
 create or replace function private.guard_response()
-returns trigger language plpgsql set search_path = '' as $$
+returns trigger language plpgsql set search_path = '' as $body$
 begin
   if tg_op = 'DELETE' then
     raise exception 'response history cannot be deleted' using errcode = '55000';
@@ -431,7 +431,7 @@ for each row execute function private.guard_response();
 create or replace function public.create_patient(
   target_org uuid, patient_name text, patient_language text default null
 )
-returns uuid language plpgsql security definer set search_path = '' as $$
+returns uuid language plpgsql security definer set search_path = '' as $body$
 declare caller_id uuid := auth.uid(); patient_id uuid;
 begin
   if caller_id is null or not private.has_org_role(target_org,array['clinician']::text[]) then
@@ -455,7 +455,7 @@ grant execute on function public.create_patient(uuid,text,text) to authenticated
 create or replace function public.assign_patient_clinician(
   target_org uuid, target_patient uuid, target_clinician uuid
 )
-returns uuid language plpgsql security definer set search_path = '' as $$
+returns uuid language plpgsql security definer set search_path = '' as $body$
 declare caller_id uuid := auth.uid(); assignment_id uuid;
 begin
   if caller_id is null or not private.can_manage_assignments(target_org) then
@@ -474,7 +474,7 @@ revoke all on function public.assign_patient_clinician(uuid,uuid,uuid) from publ
 grant execute on function public.assign_patient_clinician(uuid,uuid,uuid) to authenticated;
 
 create or replace function public.revoke_patient_assignment(target_assignment uuid)
-returns void language plpgsql security definer set search_path = '' as $$
+returns void language plpgsql security definer set search_path = '' as $body$
 declare target_org uuid;
 begin
   select a.organization_id into target_org from public.patient_clinician_assignments a
@@ -490,7 +490,7 @@ revoke all on function public.revoke_patient_assignment(uuid) from public,anon;
 grant execute on function public.revoke_patient_assignment(uuid) to authenticated;
 
 create or replace function public.create_instruction_version(target_item uuid, instruction_content text)
-returns uuid language plpgsql security definer set search_path = '' as $$
+returns uuid language plpgsql security definer set search_path = '' as $body$
 declare caller_id uuid := auth.uid(); target_org uuid; next_version integer; new_version uuid;
 begin
   if caller_id is null then raise exception 'authentication required' using errcode='42501'; end if;
@@ -514,7 +514,7 @@ revoke all on function public.create_instruction_version(uuid,text) from public,
 grant execute on function public.create_instruction_version(uuid,text) to authenticated;
 
 create or replace function public.approve_instruction_version(target_version uuid)
-returns void language plpgsql security definer set search_path = '' as $
+returns void language plpgsql security definer set search_path = '' as $body$
 declare target_org uuid; target_item uuid; current_status text;
 begin
   select v.organization_id,v.instruction_item_id into target_org,target_item
@@ -544,7 +544,7 @@ revoke all on function public.approve_instruction_version(uuid) from public,anon
 grant execute on function public.approve_instruction_version(uuid) to authenticated;
 
 create or replace function public.approve_question(target_question uuid)
-returns void language plpgsql security definer set search_path = '' as $
+returns void language plpgsql security definer set search_path = '' as $body$
 declare target_org uuid; target_session uuid; target_status text;
 begin
   select q.organization_id,q.session_id into target_org,target_session
@@ -570,7 +570,7 @@ grant execute on function public.approve_question(uuid) to authenticated;
 create or replace function public.transition_session(
   target_session uuid, expected_version integer, target_status text
 )
-returns integer language plpgsql security definer set search_path = '' as $$
+returns integer language plpgsql security definer set search_path = '' as $body$
 declare s public.teachback_sessions%rowtype; required_count bigint; answered_count bigint;
 begin
   select * into s from public.teachback_sessions where id=target_session for update;
@@ -644,7 +644,7 @@ create or replace function public.save_response_draft(
   target_session uuid, target_question uuid, target_idempotency_key uuid,
   response_content text, target_attempt integer default 1
 )
-returns uuid language plpgsql security definer set search_path = '' as $
+returns uuid language plpgsql security definer set search_path = '' as $body$
 declare s public.teachback_sessions%rowtype; existing public.responses%rowtype; new_id uuid;
 begin
   select * into s from public.teachback_sessions where id=target_session for update;
@@ -678,7 +678,7 @@ revoke all on function public.save_response_draft(uuid,uuid,uuid,text,integer) f
 grant execute on function public.save_response_draft(uuid,uuid,uuid,text,integer) to authenticated;
 
 create or replace function public.submit_response(target_response uuid)
-returns uuid language plpgsql security definer set search_path = '' as $
+returns uuid language plpgsql security definer set search_path = '' as $body$
 declare r public.responses%rowtype; session_status text; target_org uuid; target_session uuid;
 begin
   select organization_id,session_id into target_org,target_session
