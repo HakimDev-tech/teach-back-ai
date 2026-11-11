@@ -37,14 +37,19 @@ jobs:
       - name: Verify formatting
         run: npm run format
       - name: Lint
+        if: always()
         run: npm run lint
       - name: Type check
+        if: always()
         run: npm run typecheck
       - name: Unit tests
+        if: always()
         run: npm test
       - name: Dependency audit
+        if: always()
         run: npm audit --audit-level=high
       - name: Production build
+        if: always()
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
