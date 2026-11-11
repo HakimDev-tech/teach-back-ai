@@ -83,7 +83,9 @@ create table public.instruction_versions (
   constraint instruction_versions_org_item_id_key unique (organization_id,instruction_item_id,id),
   constraint instruction_versions_approval_pair check (
     (status in ('approved','superseded') and approved_by is not null and approved_at is not null)
-    or (status in ('draft','archived') and approved_by is null and approved_at is null)
+    or (status='draft' and approved_by is null and approved_at is null)
+    or (status='archived' and ((approved_by is null and approved_at is null)
+      or (approved_by is not null and approved_at is not null)))
   )
 );
 create index instruction_versions_item_status_idx
@@ -263,6 +265,12 @@ begin
       and m.role = 'clinician' and m.status = 'active'
   ) then
     raise exception 'assignment target must be an active clinician in this organization' using errcode = '23514';
+  end if;
+  if new.status = 'active' and not exists (
+    select 1 from public.patients p
+    where p.organization_id=new.organization_id and p.id=new.patient_id and p.status='active'
+  ) then
+    raise exception 'archived patients cannot receive active assignments' using errcode = '23514';
   end if;
   if new.status = 'active' and not exists (
     select 1 from public.organization_memberships m
@@ -497,7 +505,10 @@ begin
   select i.organization_id into target_org
    from public.instruction_items i join public.care_plans c
      on c.organization_id=i.organization_id and c.id=i.care_plan_id
-   where i.id=target_item and private.can_access_patient(c.organization_id,c.patient_id)
+   where i.id=target_item and c.status <> 'archived'
+     and exists (select 1 from public.patients p where p.organization_id=c.organization_id
+       and p.id=c.patient_id and p.status='active')
+     and private.can_access_patient(c.organization_id,c.patient_id)
    for update of i;
   if target_org is null then raise exception 'instruction item not found' using errcode='P0002'; end if;
   select coalesce(max(v.version_number),0)+1 into next_version
@@ -526,7 +537,9 @@ begin
   if target_org is null or not exists (
     select 1 from public.care_plans c join public.instruction_items i
       on i.organization_id=c.organization_id and i.care_plan_id=c.id
-    where i.organization_id=target_org and i.id=target_item
+    where i.organization_id=target_org and i.id=target_item and c.status <> 'archived'
+      and exists (select 1 from public.patients p where p.organization_id=c.organization_id
+        and p.id=c.patient_id and p.status='active')
       and private.can_access_patient(c.organization_id,c.patient_id)
   ) then raise exception 'instruction version not found' using errcode='P0002'; end if;
   if current_status <> 'draft' then raise exception 'only draft versions can be approved' using errcode='23514'; end if;
@@ -578,6 +591,13 @@ begin
     raise exception 'session not found' using errcode='P0002';
   end if;
   if s.version <> expected_version then raise exception 'session version conflict' using errcode='40001'; end if;
+  if s.expires_at is not null and s.expires_at <= pg_catalog.now() and target_status <> 'expired' then
+    raise exception 'session has expired' using errcode='23514';
+  end if;
+  if target_status in ('ready','in_progress') and not exists (
+    select 1 from public.patients p where p.organization_id=s.organization_id
+      and p.id=s.patient_id and p.status='active'
+  ) then raise exception 'archived patient cannot start a session' using errcode='23514'; end if;
   if s.status in ('completed','cancelled','expired') then
     raise exception 'terminal session cannot transition' using errcode='23514';
   end if;
@@ -651,7 +671,8 @@ begin
   if s.id is null or not private.can_access_patient(s.organization_id,s.patient_id) then
     raise exception 'session not found' using errcode='P0002';
   end if;
-  if s.status <> 'in_progress' then raise exception 'session is not accepting responses' using errcode='23514'; end if;
+  if s.status <> 'in_progress' or (s.expires_at is not null and s.expires_at <= pg_catalog.now()) then
+    raise exception 'session is not accepting responses' using errcode='23514'; end if;
   if not exists (select 1 from public.questions q where q.id=target_question
     and q.organization_id=s.organization_id and q.session_id=s.id and q.status='approved') then
     raise exception 'question is not part of this active session' using errcode='23514';
@@ -679,21 +700,22 @@ grant execute on function public.save_response_draft(uuid,uuid,uuid,text,integer
 
 create or replace function public.submit_response(target_response uuid)
 returns uuid language plpgsql security definer set search_path = '' as $body$
-declare r public.responses%rowtype; session_status text; target_org uuid; target_session uuid;
+declare r public.responses%rowtype; session_status text; session_expires_at timestamptz; target_org uuid; target_session uuid;
 begin
   select organization_id,session_id into target_org,target_session
     from public.responses where id=target_response;
   if target_org is null or not private.can_access_session(target_org,target_session) then
     raise exception 'response not found' using errcode='P0002';
   end if;
-  select s.status into session_status from public.teachback_sessions s
+  select s.status,s.expires_at into session_status,session_expires_at from public.teachback_sessions s
    where s.id=target_session and s.organization_id=target_org for update;
   select * into r from public.responses where id=target_response for update;
   if r.id is null or r.organization_id<>target_org or r.session_id<>target_session then
     raise exception 'response not found' using errcode='P0002';
   end if;
   if r.status='submitted' then return r.id; end if;
-  if session_status <> 'in_progress' then raise exception 'session is not accepting responses' using errcode='23514'; end if;
+  if session_status <> 'in_progress' or (session_expires_at is not null and session_expires_at <= pg_catalog.now()) then
+    raise exception 'session is not accepting responses' using errcode='23514'; end if;
   if not exists (select 1 from public.questions q where q.id=r.question_id
     and q.organization_id=r.organization_id and q.session_id=r.session_id and q.status='approved') then
     raise exception 'response question is not approved' using errcode='23514';
@@ -757,14 +779,17 @@ create policy care_plans_select_assigned on public.care_plans for select to auth
 using (private.can_access_patient(organization_id,patient_id));
 create policy care_plans_insert_assigned on public.care_plans for insert to authenticated
 with check (created_by=(select auth.uid()) and status='draft'
-  and private.can_access_patient(organization_id,patient_id));
+  and private.can_access_patient(organization_id,patient_id)
+  and exists (select 1 from public.patients p where p.organization_id=care_plans.organization_id
+    and p.id=care_plans.patient_id and p.status='active'));
 create policy care_plans_update_assigned on public.care_plans for update to authenticated
 using (private.can_access_patient(organization_id,patient_id))
 with check (private.can_access_patient(organization_id,patient_id));
 
 create policy instruction_items_select_assigned on public.instruction_items for select to authenticated
 using (exists (select 1 from public.care_plans c where c.organization_id=instruction_items.organization_id
- and c.id=instruction_items.care_plan_id and private.can_access_patient(c.organization_id,c.patient_id)));
+ and c.id=instruction_items.care_plan_id and c.status <> 'archived'
+ and private.can_access_patient(c.organization_id,c.patient_id)));
 create policy instruction_items_insert_assigned on public.instruction_items for insert to authenticated
 with check (exists (select 1 from public.care_plans c where c.organization_id=instruction_items.organization_id
  and c.id=instruction_items.care_plan_id and private.can_access_patient(c.organization_id,c.patient_id)));
@@ -780,9 +805,11 @@ using (private.can_access_patient(organization_id,patient_id));
 create policy sessions_insert_assigned on public.teachback_sessions for insert to authenticated
 with check (created_by=(select auth.uid()) and status='draft'
  and private.can_access_patient(organization_id,patient_id)
+ and exists (select 1 from public.patients p where p.organization_id=teachback_sessions.organization_id
+  and p.id=teachback_sessions.patient_id and p.status='active')
  and (care_plan_id is null or exists (select 1 from public.care_plans c
    where c.organization_id=teachback_sessions.organization_id and c.patient_id=teachback_sessions.patient_id
-   and c.id=teachback_sessions.care_plan_id)));
+   and c.id=teachback_sessions.care_plan_id and c.status <> 'archived')));
 
 create policy session_instructions_select_assigned on public.session_instructions for select to authenticated
 using (private.can_access_session(organization_id,session_id));
@@ -803,6 +830,11 @@ with check (created_by=(select auth.uid()) and status='draft'
   and s.id=questions.session_id and s.status='draft')
  and exists (select 1 from public.session_instructions si where si.organization_id=questions.organization_id
   and si.session_id=questions.session_id and si.instruction_version_id=questions.instruction_version_id));
+create policy questions_update_draft on public.questions for update to authenticated
+using (status='draft' and private.can_access_session(organization_id,session_id)
+ and exists (select 1 from public.teachback_sessions s where s.organization_id=questions.organization_id
+  and s.id=questions.session_id and s.status='draft'))
+with check (status='draft' and private.can_access_session(organization_id,session_id));
 
 create policy responses_select_assigned on public.responses for select to authenticated
 using (private.can_access_session(organization_id,session_id));
