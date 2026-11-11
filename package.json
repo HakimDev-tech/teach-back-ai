@@ -18,7 +18,7 @@
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
-    "db:types": "supabase gen types typescript --local > src/types/database.types.ts",
+    "db:types": "mkdir -p src/types && supabase gen types typescript --local > src/types/database.types.ts",
     "db:lint": "supabase db lint --local"
   },
   "dependencies": {
