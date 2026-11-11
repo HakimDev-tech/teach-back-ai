@@ -187,14 +187,14 @@ create index responses_question_attempt_idx on public.responses (organization_id
 create or replace function private.can_manage_assignments(target_org uuid)
 returns boolean
 language sql stable security definer set search_path = ''
-as $
+as $$
   select private.has_org_role(target_org, array['owner','admin']::text[]);
-$;
+$$;
 
 create or replace function private.can_access_patient(target_org uuid, target_patient uuid)
 returns boolean
 language sql stable security definer set search_path = ''
-as $
+as $$
   select exists (
     select 1
     from public.patient_clinician_assignments a
@@ -208,19 +208,19 @@ as $
       and m.role = 'clinician'
       and m.status = 'active'
   );
-$;
+$$;
 
 create or replace function private.can_access_session(target_org uuid, target_session uuid)
 returns boolean
 language sql stable security definer set search_path = ''
-as $
+as $$
   select exists (
     select 1 from public.teachback_sessions s
     where s.organization_id = target_org
       and s.id = target_session
       and private.can_access_patient(s.organization_id, s.patient_id)
   );
-$;
+$$;
 
 revoke all on function private.can_manage_assignments(uuid) from public, anon;
 revoke all on function private.can_access_patient(uuid,uuid) from public, anon;
@@ -243,7 +243,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 create trigger patients_identity before update on public.patients for each row execute function private.guard_patient_identity();
 create trigger patients_set_updated_at before update on public.patients for each row execute function private.set_updated_at();
 create trigger assignments_set_updated_at before update on public.patient_clinician_assignments for each row execute function private.set_updated_at();
@@ -322,7 +322,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 create trigger care_plans_identity before update on public.care_plans
 for each row execute function private.guard_care_plan_identity();
 
@@ -352,7 +352,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 create trigger session_instructions_validate before insert on public.session_instructions
 for each row execute function private.validate_session_instruction();
 create trigger session_instructions_immutable before insert or update or delete on public.session_instructions
@@ -383,7 +383,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 create trigger questions_immutable before insert or update or delete on public.questions
 for each row execute function private.guard_question();
 
@@ -673,7 +673,7 @@ begin
   returning id into new_id;
   return new_id;
 end;
-$;
+$$;
 revoke all on function public.save_response_draft(uuid,uuid,uuid,text,integer) from public,anon;
 grant execute on function public.save_response_draft(uuid,uuid,uuid,text,integer) to authenticated;
 
