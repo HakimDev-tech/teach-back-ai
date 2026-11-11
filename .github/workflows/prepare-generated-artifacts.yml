@@ -3,8 +3,6 @@ name: Prepare generated development artifacts
 on:
   push:
     branches: ["phase-b/**"]
-    paths:
-      - ".github/workflows/prepare-generated-artifacts.yml"
 
 permissions:
   contents: read
