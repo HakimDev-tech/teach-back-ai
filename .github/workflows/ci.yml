@@ -1,22 +1,56 @@
 name: CI
+
 on:
   push:
     branches: [main, "phase-a/**"]
   pull_request:
     branches: [main]
+
 permissions:
-  contents: read
+  contents: write
+
 jobs:
-  application:
+  foundation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 3.0.0
+      - uses: docker/setup-buildx-action@v3
+
       - name: Install dependencies
         run: npm install
-      - name: Formatting
+      - name: Start local Supabase
+        run: supabase start
+      - name: Apply migrations from a clean database
+        run: supabase db reset
+      - name: Run pgTAP security tests
+        run: supabase test db
+      - name: Generate database types from the local schema
+        run: npm run db:types
+
+      # One-time bootstrap: format source and commit the generated lockfile/types.
+      # This block will be removed after the first successful foundation run.
+      - name: Normalize formatting
+        run: npx prettier --write .
+      - name: Commit generated lockfile, types, and formatting
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: generate lockfile, database types, and formatting"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: Verify formatting
         run: npm run format
       - name: Lint
         run: npm run lint
@@ -24,23 +58,13 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm test
+      - name: Dependency audit
+        run: npm audit --audit-level=high
       - name: Production build
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
-  database:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-      - uses: docker/setup-buildx-action@v3
-      - name: Start local Supabase
-        run: supabase start
-      - name: Run database tests
-        run: supabase test db
       - name: Stop local Supabase
         if: always()
         run: supabase stop --no-backup
