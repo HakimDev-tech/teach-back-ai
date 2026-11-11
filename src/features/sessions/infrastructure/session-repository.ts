@@ -45,6 +45,18 @@ export class SessionRepository {
     return data;
   }
 
+  async updateQuestion(questionId: string, input: { questionText: string; position: number }) {
+    const { data, error } = await this.db
+      .from("questions")
+      .update({ question_text: input.questionText, position: input.position })
+      .eq("id", questionId)
+      .eq("status", "draft")
+      .select("id,session_id,position,status,question_text")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
   async approveQuestion(questionId: string) {
     const { error } = await this.db.rpc("approve_question", { target_question: questionId });
     if (error) throw error;

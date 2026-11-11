@@ -19,6 +19,10 @@ export class SessionService {
     return this.sessions.addQuestion(input);
   }
 
+  updateQuestion(questionId: string, input: { questionText: string; position: number }) {
+    return this.sessions.updateQuestion(questionId, input);
+  }
+
   approveQuestion(questionId: string) {
     return this.sessions.approveQuestion(questionId);
   }
