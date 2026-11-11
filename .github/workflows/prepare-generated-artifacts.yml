@@ -32,13 +32,21 @@ jobs:
       - name: Verify formatting
         run: npm run format
       - name: Package changed and generated files
+        if: always()
         run: |
           git ls-files -m -o --exclude-standard > /tmp/changed-files.txt
-          tar -czf phase-b-generated-files.tar.gz -T /tmp/changed-files.txt
+          if [ -s /tmp/changed-files.txt ]; then
+            tar -czf phase-b-generated-files.tar.gz -T /tmp/changed-files.txt
+          else
+            printf "No generated or modified files were produced.\n" > phase-b-generated-files.txt
+          fi
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: phase-b-generated-files
-          path: phase-b-generated-files.tar.gz
+          path: |
+            phase-b-generated-files.tar.gz
+            phase-b-generated-files.txt
           if-no-files-found: error
           retention-days: 3
       - name: Stop local Supabase
