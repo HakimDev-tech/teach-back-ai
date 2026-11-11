@@ -12,8 +12,8 @@ select ok(to_regprocedure('public.create_organization(text,text)') is not null, 
 select ok(to_regprocedure('public.transfer_organization_ownership(uuid,uuid)') is not null, 'controlled ownership transfer exists');
 select ok(not has_function_privilege('anon', 'public.create_organization(text,text)', 'execute'), 'anon cannot create organizations');
 select ok(not has_function_privilege('anon', 'public.transfer_organization_ownership(uuid,uuid)', 'execute'), 'anon cannot transfer ownership');
-select ok(to_regclass('public.patients') is null, 'patient tables deferred from Phase A');
-select ok(to_regclass('public.care_plans') is null, 'care-plan tables deferred from Phase A');
+select ok((select pg_get_constraintdef(oid) not like '%patient%' from pg_constraint where conrelid='public.organization_memberships'::regclass and conname='organization_memberships_role_check'), 'patient is not a professional membership role');
+select ok((select pg_get_constraintdef(oid) like '%owner%' and pg_get_constraintdef(oid) like '%admin%' and pg_get_constraintdef(oid) like '%clinician%' from pg_constraint where conrelid='public.organization_memberships'::regclass and conname='organization_memberships_role_check'), 'professional membership roles remain constrained');
 select ok(not has_table_privilege('anon', 'public.profiles', 'select'), 'anon has no profile SELECT grant');
 select ok(not has_table_privilege('anon', 'public.organizations', 'select'), 'anon has no organization SELECT grant');
 select * from finish();

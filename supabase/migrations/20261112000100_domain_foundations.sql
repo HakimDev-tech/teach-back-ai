@@ -335,7 +335,7 @@ create trigger care_plans_identity before update on public.care_plans
 for each row execute function private.guard_care_plan_identity();
 
 create or replace function private.guard_session_snapshot()
-returns trigger language plpgsql set search_path = '' as $body$
+returns trigger language plpgsql security definer set search_path = '' as $body$
 declare target_session uuid; target_org uuid; current_status text;
 begin
   target_session := case when tg_op = 'DELETE' then old.session_id else new.session_id end;
@@ -350,7 +350,7 @@ begin
 end;
 $body$;
 create or replace function private.validate_session_instruction()
-returns trigger language plpgsql set search_path = '' as $body$
+returns trigger language plpgsql security definer set search_path = '' as $body$
 begin
   perform 1 from public.instruction_versions v where v.organization_id=new.organization_id
     and v.instruction_item_id=new.instruction_item_id and v.id=new.instruction_version_id
@@ -361,13 +361,15 @@ begin
   return new;
 end;
 $body$;
+revoke all on function private.validate_session_instruction() from public,anon,authenticated;
 create trigger session_instructions_validate before insert on public.session_instructions
 for each row execute function private.validate_session_instruction();
+revoke all on function private.guard_session_snapshot() from public,anon,authenticated;
 create trigger session_instructions_immutable before insert or update or delete on public.session_instructions
 for each row execute function private.guard_session_snapshot();
 
 create or replace function private.guard_question()
-returns trigger language plpgsql set search_path = '' as $body$
+returns trigger language plpgsql security definer set search_path = '' as $body$
 declare current_status text; target_session uuid; target_org uuid;
 begin
   target_session := case when tg_op='DELETE' then old.session_id else new.session_id end;
@@ -392,6 +394,7 @@ begin
   return new;
 end;
 $body$;
+revoke all on function private.guard_question() from public,anon,authenticated;
 create trigger questions_immutable before insert or update or delete on public.questions
 for each row execute function private.guard_question();
 
