@@ -1,5 +1,5 @@
 begin;
-select plan(42);
+select plan(47);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
@@ -98,8 +98,31 @@ select set_config('test.instruction_version_id',public.create_instruction_versio
  'Take the prescribed medicine with food according to the clinician-approved schedule.'
 )::text,true);
 select ok(current_setting('test.instruction_version_id',true) is not null,'version creation RPC returns a version');
-select lives_ok($$select public.approve_instruction_version(current_setting('test.instruction_version_id')::uuid)$$,
+select lives_ok($select public.approve_instruction_version(current_setting('test.instruction_version_id')::uuid)$,
  'assigned clinician approves instruction version');
+
+-- A second patient in the same tenant must not leak instruction snapshots into Patient A sessions.
+select set_config('test.patient_b_id',public.create_patient(
+ '40000000-0000-4000-8000-000000000001','Synthetic Patient B','fr'
+)::text,true);
+select lives_ok($insert into public.care_plans (organization_id,patient_id,title,created_by)
+ values ('40000000-0000-4000-8000-000000000001',current_setting('test.patient_b_id')::uuid,
+ 'Synthetic care plan B','30000000-0000-4000-8000-000000000003')$,
+ 'clinician creates second patient care plan');
+select set_config('test.care_plan_b_id',(
+ select id::text from public.care_plans where patient_id=current_setting('test.patient_b_id')::uuid
+),true);
+select lives_ok($insert into public.instruction_items (organization_id,care_plan_id)
+ values ('40000000-0000-4000-8000-000000000001',current_setting('test.care_plan_b_id')::uuid)$,
+ 'clinician creates second patient instruction item');
+select set_config('test.instruction_item_b_id',(
+ select id::text from public.instruction_items where care_plan_id=current_setting('test.care_plan_b_id')::uuid
+),true);
+select set_config('test.instruction_version_b_id',public.create_instruction_version(
+ current_setting('test.instruction_item_b_id')::uuid,'Synthetic instructions for Patient B.'
+)::text,true);
+select lives_ok($select public.approve_instruction_version(current_setting('test.instruction_version_b_id')::uuid)$,
+ 'clinician approves Patient B instruction version');
 select throws_ok(
  $$update public.instruction_versions set content='Changed content' where id=current_setting('test.instruction_version_id')::uuid$$,
  '42501',null,'client cannot directly modify approved instruction content'
@@ -116,7 +139,12 @@ select set_config('test.session_id',(
  where patient_id=current_setting('test.patient_id')::uuid
  order by created_at desc limit 1
 ),true);
-select lives_ok($$insert into public.session_instructions
+select throws_ok($insert into public.session_instructions
+ (organization_id,session_id,instruction_item_id,instruction_version_id)
+ values ('40000000-0000-4000-8000-000000000001',current_setting('test.session_id')::uuid,
+ current_setting('test.instruction_item_b_id')::uuid,current_setting('test.instruction_version_b_id')::uuid)$,
+ '23514',null,'a session cannot snapshot another patients instructions in the same tenant');
+select lives_ok($insert into public.session_instructions
  (organization_id,session_id,instruction_item_id,instruction_version_id)
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.session_id')::uuid,
  current_setting('test.instruction_item_id')::uuid,current_setting('test.instruction_version_id')::uuid)$$,

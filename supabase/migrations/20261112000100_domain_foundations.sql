@@ -352,11 +352,22 @@ $body$;
 create or replace function private.validate_session_instruction()
 returns trigger language plpgsql security definer set search_path = '' as $body$
 begin
-  perform 1 from public.instruction_versions v where v.organization_id=new.organization_id
-    and v.instruction_item_id=new.instruction_item_id and v.id=new.instruction_version_id
-    and v.status='approved' for share;
+  perform 1
+    from public.instruction_versions v
+    join public.instruction_items i
+      on i.organization_id=v.organization_id and i.id=v.instruction_item_id
+    join public.care_plans c
+      on c.organization_id=i.organization_id and c.id=i.care_plan_id
+    join public.teachback_sessions s
+      on s.organization_id=new.organization_id and s.id=new.session_id
+   where v.organization_id=new.organization_id
+     and v.instruction_item_id=new.instruction_item_id
+     and v.id=new.instruction_version_id
+     and v.status='approved'
+     and c.patient_id=s.patient_id
+   for share of v;
   if not found then
-    raise exception 'session snapshot requires an approved instruction version' using errcode='23514';
+    raise exception 'session snapshot requires an approved instruction version for the same patient' using errcode='23514';
   end if;
   return new;
 end;
