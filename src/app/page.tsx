@@ -1,0 +1,3 @@
+export default function HomePage() {
+  return <main className="mx-auto flex min-h-screen max-w-4xl flex-col justify-center px-6 py-16"><p className="text-sm font-semibold tracking-wide text-emerald-800">TEACH-BACK AI</p><h1 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">Understanding care is part of receiving care.</h1><p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">A clinician-guided platform for checking whether patients understand their care instructions. Clinical decisions remain with healthcare professionals.</p><p className="mt-10 text-sm text-slate-500">Foundations are being configured.</p></main>;
+}

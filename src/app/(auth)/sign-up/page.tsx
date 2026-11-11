@@ -1,0 +1,3 @@
+import Link from "next/link";
+import { SignUpForm } from "@/features/auth/presentation/sign-up-form";
+export default function SignUpPage() { return <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16"><h1 className="text-2xl font-semibold">Create a professional account</h1><p className="mt-2 text-sm text-slate-600">Registration does not grant an organization role. An owner or admin must invite you.</p><div className="mt-8"><SignUpForm /></div><p className="mt-6 text-sm text-slate-600">Already registered? <Link className="font-medium underline" href="/sign-in">Sign in</Link></p></main>; }
