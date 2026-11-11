@@ -71,4 +71,24 @@ export class SessionRepository {
     if (error) throw error;
     return data;
   }
+  async addInstructionSnapshot(input: {
+    organizationId: string;
+    sessionId: string;
+    instructionItemId: string;
+    instructionVersionId: string;
+  }) {
+    const { data, error } = await this.db
+      .from("session_instructions")
+      .insert({
+        organization_id: input.organizationId,
+        session_id: input.sessionId,
+        instruction_item_id: input.instructionItemId,
+        instruction_version_id: input.instructionVersionId,
+      })
+      .select("id,session_id,instruction_item_id,instruction_version_id,created_at")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
 }
