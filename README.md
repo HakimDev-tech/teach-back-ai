@@ -8,7 +8,9 @@ A clinician-guided platform for verifying whether patients understand their care
 - AI must not diagnose, prescribe, modify treatment, or make clinical safety decisions.
 - Clinicians remain responsible for approving medical instructions and clarifications.
 - Use synthetic data only in development, tests, and demonstrations.
-- Phase A establishes technical foundations; it does not implement clinical workflows.
+- Phase A establishes identity and tenant foundations.
+- Phase B adds organization-scoped patient records, clinician assignments, care plans, immutable instruction versions, session-specific approved questions, session state transitions, and internal response persistence.
+- AI workflows and patient self-service access are not implemented.
 
 ## Prerequisites
 - Node.js 20.9 or newer.
