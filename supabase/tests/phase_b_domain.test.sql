@@ -1,5 +1,5 @@
 begin;
-select plan(97);
+select plan(98);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
@@ -438,6 +438,10 @@ select throws_ok(
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select throws_ok($cap$select public.approve_clinical_capability(
+  current_setting('test.owner_capability_id')::uuid,'external_registry'
+)$cap$,
+  '22023',null,'unconfigured external registry verification cannot be claimed');
 select lives_ok($cap$select public.approve_clinical_capability(
   current_setting('test.owner_capability_id')::uuid,'manual_review'
 )$cap$,
