@@ -114,6 +114,8 @@ This journey requires a domain extension before UI implementation:
 - A session can complete only after the clinician has reviewed the latest required attempts.
 - AI suggestions remain drafts and cannot create an approved clarification or complete a session.
 
+The detailed proposed schema, authorization boundaries, invitation-code protocol, patient RLS projection, response-review model, and retry state machine are documented in [Phase C domain extension design](phase-c-domain-extension-design.md). This design must be implemented additively and verified before enabling patient self-service.
+
 ## Required domain additions
 
 Before enabling patient access or iterative review, design and test:
