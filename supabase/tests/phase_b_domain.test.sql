@@ -1,5 +1,5 @@
 begin;
-select plan(91);
+select plan(97);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
@@ -142,10 +142,48 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000004',true);
 select is((select count(*) from public.patients),1::bigint,'assigned clinician can now read patient');
+
+-- Revoking clinical capability also hides assignment metadata while the assignment row remains active.
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
-select lives_ok($$select public.revoke_patient_assignment(current_setting('test.assignment_id')::uuid)$$,'admin can revoke assignment');
+select lives_ok($cap$select public.revoke_clinical_capability(
+  current_setting('test.clinician_b_new_capability_id')::uuid,'capability re-check'
+)$cap$,
+  'admin can revoke clinical capability while an assignment is active');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000004',true);
+select is((select count(*) from public.patients),0::bigint,
+  'revoked clinical capability removes patient visibility despite active assignment');
+select is((select count(*) from public.patient_clinician_assignments),0::bigint,
+  'revoked clinical capability also hides assignment metadata');
+
+select lives_ok($cap$select set_config('test.clinician_b_final_capability_id',
+  public.request_clinical_capability(
+    '40000000-0000-4000-8000-000000000001','physician'
+  )::text,true)$cap$,
+  'clinician can request capability again after revocation');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select lives_ok($cap$select public.approve_clinical_capability(
+  current_setting('test.clinician_b_final_capability_id')::uuid,'manual_review'
+)$cap$,
+  'admin can independently re-approve clinical capability');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000004',true);
+select is((select count(*) from public.patients),1::bigint,
+  'active assignment restores patient visibility after capability re-approval');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select lives_ok($select public.revoke_patient_assignment(current_setting('test.assignment_id')::uuid)$,'admin can revoke assignment');
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000004',true);
