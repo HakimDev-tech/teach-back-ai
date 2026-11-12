@@ -8,6 +8,7 @@ import { useI18n } from "@/i18n/provider";
 const items = [
   { href: "/clinician", key: "clinician.overview" as const },
   { href: "/clinician/patients", key: "patients.nav" as const },
+  { href: "/clinician/access", key: "clinicalAccess.nav" as const },
 ];
 
 export function ClinicianNavigation({ mobile = false }: { mobile?: boolean }) {
