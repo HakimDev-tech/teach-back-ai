@@ -183,7 +183,7 @@ select is((select count(*) from public.patients),1::bigint,
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
-select lives_ok($select public.revoke_patient_assignment(current_setting('test.assignment_id')::uuid)$,'admin can revoke assignment');
+select lives_ok($cap$select public.revoke_patient_assignment(current_setting('test.assignment_id')::uuid)$cap$,'admin can revoke assignment');
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000004',true);
