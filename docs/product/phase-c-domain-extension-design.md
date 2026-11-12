@@ -1,6 +1,6 @@
 # Phase C — Domain extension design
 
-**Status:** architecture decision proposal for implementation on phase-c/product-execution  
+**Status:** implementation in progress on phase-c/world-class-product; explicit capability migration and database tests are being hardened  
 **Baseline:** 04ee47470dc94630635ced640a50dbeebcc05396  
 **Scope:** clinical capability, organization/patient invitations, patient identity and access, response review, clinician clarification, retries, and clinical auditability.
 
@@ -18,13 +18,13 @@ All development and hackathon fixtures remain synthetic. No real patient informa
 
 ### Existing constraint
 
-organization_memberships permits exactly one role per user and organization: owner, admin, or clinician. Clinical access requires the clinician role plus an active patient assignment. Owners and admins can manage assignments but cannot read clinical records.
+organization_memberships permits exactly one role per user and organization: owner, admin, or clinician. Clinical access currently requires the clinician role plus an active patient assignment. That role is not professional verification: an owner/admin can assign it without a credential review. The role-only shortcut is being removed.
 
 This is a correct least-privilege boundary, but it cannot represent an owner who is also a clinician.
 
 ### Recommended extension
 
-Keep organization_memberships as the organization membership and governance record. Add an independent organization_clinical_capabilities record for a member who is explicitly authorized to perform clinical work in that organization.
+Keep organization_memberships as the organization membership and governance record. Add an independent organization_clinical_capabilities record for every member who is explicitly authorized to perform clinical work in that organization. A clinician membership role is organizational metadata only and never grants clinical access by itself.
 
 Conceptual fields:
 
@@ -46,11 +46,13 @@ Do not collect or retain a full professional license identifier unless a documen
 A user may read or modify clinical records only when all of the following hold:
 
 1. The user has an active organization membership.
-2. The user has clinical capability: either the existing clinician membership role or an active, verified clinical-capability grant.
+2. The user has an active, verified clinical-capability grant. No membership role, including clinician, is an exception.
 3. The user has an active assignment to the target patient.
 4. The target patient and organization are active and match the record being accessed.
 
-Owners/admins retain assignment and organization-management permissions but gain no clinical access from those roles alone. An owner/admin who is also a clinician must receive an explicit verified clinical capability.
+Owners/admins retain assignment and organization-management permissions but gain no clinical access from those roles alone. Every clinician, including a member whose organization role is clinician, must receive an explicit capability approval. Existing clinician memberships are not silently backfilled; they must be reviewed before clinical access is restored.
+
+The current implementation supports only the `manual_review` verification method. This is an organization-level attestation recorded by an independent owner/admin; it is **not** an external professional-registry check, proof of licensure, or regulatory credential certification. The UI and documentation must not imply otherwise. External credential verification remains deferred until a real provider or documented manual-review operating procedure exists.
 
 A user must not approve their own clinical-capability request. A solo-practitioner owner therefore needs an independent verification path; self-approval is not an acceptable shortcut. For synthetic hackathon fixtures, verified capability may be seeded explicitly and identified as test data.
 
