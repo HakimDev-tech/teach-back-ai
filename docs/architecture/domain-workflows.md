@@ -19,15 +19,16 @@
 2. The clinician adds references to approved instruction versions through `session_instructions`.
 3. Questions are manually entered for that session and must reference one of its instruction snapshots.
 4. Each question is approved explicitly.
-5. `draft → ready` is permitted only when at least one approved instruction snapshot and at least one approved question exist, and every question is approved.
+5. `draft → ready` is permitted only when approved instruction snapshots exist, every snapshot has at least one approved question referencing that exact item/version, and every question in the session is approved. This invariant is enforced by migration `20261112140115_phase_c_instruction_question_coverage.sql`.
 
 ## Publication, response and review
 - `ready → in_progress` publishes and starts the session atomically.
 - The authenticated internal workflow saves drafts through `save_response_draft`, using a client-generated UUID idempotency key.
 - `submit_response` locks the session before the response and makes the submission immutable.
 - `in_progress → awaiting_review` requires a submitted response for every approved question.
-- A clinician may move `awaiting_review → review_in_progress → completed`.
-- `review_in_progress → awaiting_review` supports a later clarification round without changing submitted history.
+- The current clinician-only state machine permits `awaiting_review → review_in_progress → completed`, but completion is not yet gated by persisted response-review records.
+- `review_in_progress → awaiting_review` currently returns work to the review queue; it is not a patient retry or a persisted clarification workflow.
+- Patient identity, patient-specific response RPCs, response_reviews, clinician_clarifications, and database-enforced retry sequencing are not implemented yet.
 - Cancellation and expiry are controlled transitions. Expiry requires a configured expiry time that has elapsed.
 - Terminal states (`completed`, `cancelled`, `expired`) cannot be reopened.
 
