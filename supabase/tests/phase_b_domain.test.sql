@@ -199,10 +199,12 @@ select throws_ok(
  current_setting('test.question_id')::uuid,'50000000-0000-4000-8000-000000000001',
  'Reused idempotency key with a different attempt',2)$$,
  '23505',null,'idempotency key cannot be reused for a different attempt');
+reset role;
 select throws_ok(
  $$update public.responses set response_text='attempted overwrite'
  where id=current_setting('test.response_id')::uuid$$,
  '55000',null,'submitted response content is immutable');
+set local role authenticated;
 select is((select response_text from public.responses where id=current_setting('test.response_id')::uuid),
  'I will follow the schedule that my clinician approved and take it with food.',
  'submitted response content remains unchanged');
