@@ -1,5 +1,5 @@
 -- Phase C: separate organization governance from verified clinical capability.
--- Existing clinician memberships retain their established capability for backward compatibility.
+-- No organization membership role, including clinician, grants clinical access without explicit approval.
 -- Owner/admin memberships require an independent, non-self-approved capability grant.
 
 create table public.organization_clinical_capabilities (
@@ -132,7 +132,7 @@ $body$;
 revoke all on function private.has_clinical_capability(uuid, uuid) from public, anon;
 grant execute on function private.has_clinical_capability(uuid, uuid) to authenticated;
 
--- Preserve the assignment boundary while allowing explicitly verified owner/admin clinicians.
+-- Preserve the assignment boundary for every member with an active verified clinical capability.
 create or replace function private.can_access_patient(target_org uuid, target_patient uuid)
 returns boolean
 language sql
@@ -153,6 +153,20 @@ $body$;
 
 revoke all on function private.can_access_patient(uuid, uuid) from public, anon;
 grant execute on function private.can_access_patient(uuid, uuid) to authenticated;
+
+-- Assignment metadata is also hidden from a clinician whose capability is suspended, revoked, or expired.
+drop policy if exists assignments_select_related on public.patient_clinician_assignments;
+create policy assignments_select_related
+on public.patient_clinician_assignments
+for select to authenticated
+using (
+  (
+    clinician_user_id = (select auth.uid())
+    and status = 'active'
+    and private.has_clinical_capability(organization_id, clinician_user_id)
+  )
+  or private.can_manage_assignments(organization_id)
+);
 
 -- Assignment creation and reactivation must target a member with current clinical capability.
 create or replace function private.validate_patient_assignment()
