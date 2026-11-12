@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { RequestClinicalCapabilityForm } from "@/features/clinical-capabilities/presentation/request-clinical-capability-form";
+import { ReviewClinicalCapabilityRequests } from "@/features/clinical-capabilities/presentation/review-clinical-capability-requests";
 import { formatDate } from "@/i18n/format";
 import { getServerI18n } from "@/i18n/server";
 import { createClient } from "@/lib/supabase/server";
@@ -112,6 +113,35 @@ export default async function ClinicianAccessPage() {
       professionalType: capability?.professional_type ?? "",
     }));
 
+  const adminMemberships = memberships.filter(
+    (membership) => membership.role === "owner" || membership.role === "admin",
+  );
+  const reviewQueueResults = await Promise.all(
+    adminMemberships.map(async (membership) => {
+      const { data, error } = await supabase.rpc("list_clinical_capability_requests", {
+        target_org: membership.organization_id,
+      });
+      if (error) return { error: true, requests: [] };
+
+      const organizationName =
+        organizations?.find((organization) => organization.id === membership.organization_id)?.name ??
+        t("clinicalAccess.organization");
+      return {
+        error: false,
+        requests: (data ?? []).map((request) => ({
+          capabilityId: request.capability_id,
+          userId: request.user_id,
+          displayName: request.display_name,
+          professionalType: request.professional_type,
+          organizationName,
+          requestedAt: formatDate(request.requested_at, locale),
+        })),
+      };
+    }),
+  );
+  const reviewQueueHasError = reviewQueueResults.some((result) => result.error);
+  const reviewRequests = reviewQueueResults.flatMap((result) => result.requests);
+
   const statusLabels: Record<CapabilityStatus, string> = {
     active: t("clinicalAccess.statusActive"),
     pending: t("clinicalAccess.statusPending"),
@@ -136,6 +166,27 @@ export default async function ClinicianAccessPage() {
         eyebrow={t("clinician.workspaceEyebrow")}
         title={t("clinicalAccess.title")}
       />
+
+      {adminMemberships.length > 0 ? (
+        <Card>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand">
+            {t("clinicalAccess.reviewEyebrow")}
+          </p>
+          <h2 className="mt-2 font-display text-2xl text-ink">{t("clinicalAccess.reviewTitle")}</h2>
+          <p className="mb-5 mt-2 text-sm leading-6 text-ink-muted">
+            {t("clinicalAccess.reviewDescription")}
+          </p>
+          {reviewQueueHasError ? (
+            <p className="text-sm text-danger" role="alert">{t("clinicalAccess.reviewLoadFailed")}</p>
+          ) : reviewRequests.length > 0 ? (
+            <ReviewClinicalCapabilityRequests currentUserId={user.id} requests={reviewRequests} />
+          ) : (
+            <p className="rounded-xl bg-surface-muted p-4 text-sm leading-6 text-ink-muted">
+              {t("clinicalAccess.reviewEmpty")}
+            </p>
+          )}
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(19rem,0.8fr)]">
         <Card>
