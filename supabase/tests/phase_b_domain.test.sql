@@ -134,30 +134,28 @@ select throws_ok(
 );
 
 -- A session must have at least one approved question for every instruction snapshot.
-select lives_ok($$insert into public.instruction_items (organization_id,care_plan_id)
- values ('40000000-0000-4000-8000-000000000001',current_setting('test.care_plan_id')::uuid)$$,
+select lives_ok($$with inserted as (
+ insert into public.instruction_items (organization_id,care_plan_id)
+ values ('40000000-0000-4000-8000-000000000001',current_setting('test.care_plan_id')::uuid)
+ returning id
+)
+select set_config('test.coverage_item_id',id::text,true) from inserted$$,
  'clinician creates a second instruction item for coverage validation');
-select set_config('test.coverage_item_id',(
- select id::text from public.instruction_items
- where care_plan_id=current_setting('test.care_plan_id')::uuid
- order by created_at desc limit 1
-),true);
 select set_config('test.coverage_version_id',public.create_instruction_version(
  current_setting('test.coverage_item_id')::uuid,
  'Synthetic second instruction for coverage validation.'
 )::text,true);
 select lives_ok($$select public.approve_instruction_version(current_setting('test.coverage_version_id')::uuid)$$,
  'second instruction version is approved');
-select lives_ok($$insert into public.teachback_sessions
+select lives_ok($$with inserted as (
+ insert into public.teachback_sessions
  (organization_id,patient_id,care_plan_id,created_by)
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.patient_id')::uuid,
- current_setting('test.care_plan_id')::uuid,'30000000-0000-4000-8000-000000000003')$$,
+ current_setting('test.care_plan_id')::uuid,'30000000-0000-4000-8000-000000000003')
+ returning id
+)
+select set_config('test.coverage_session_id',id::text,true) from inserted$$,
  'clinician creates a session for instruction coverage validation');
-select set_config('test.coverage_session_id',(
- select id::text from public.teachback_sessions
- where patient_id=current_setting('test.patient_id')::uuid and status='draft'
- order by created_at desc limit 1
-),true);
 select lives_ok($$insert into public.session_instructions
  (organization_id,session_id,instruction_item_id,instruction_version_id)
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.coverage_session_id')::uuid,
@@ -168,16 +166,16 @@ select lives_ok($$insert into public.session_instructions
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.coverage_session_id')::uuid,
  current_setting('test.coverage_item_id')::uuid,current_setting('test.coverage_version_id')::uuid)$$,
  'coverage session snapshots its second approved instruction');
-select lives_ok($$insert into public.questions
+select lives_ok($$with inserted as (
+ insert into public.questions
  (organization_id,session_id,instruction_item_id,instruction_version_id,question_text,position,created_by)
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.coverage_session_id')::uuid,
  current_setting('test.instruction_item_id')::uuid,current_setting('test.instruction_version_id')::uuid,
- 'How will you follow the first instruction?',1,'30000000-0000-4000-8000-000000000003')$$,
+ 'How will you follow the first instruction?',1,'30000000-0000-4000-8000-000000000003')
+ returning id
+)
+select set_config('test.coverage_question_id',id::text,true) from inserted$$,
  'coverage session receives a question for only its first instruction');
-select set_config('test.coverage_question_id',(
- select id::text from public.questions
- where session_id=current_setting('test.coverage_session_id')::uuid
-),true);
 select lives_ok($$select public.approve_question(current_setting('test.coverage_question_id')::uuid)$$,
  'first instruction question is approved');
 select throws_ok(
@@ -189,16 +187,15 @@ select is((select status from public.teachback_sessions
  'draft','incomplete instruction coverage leaves session in draft');
 
 -- Create a session with an exact instruction snapshot and an approved manual question.
-select lives_ok($$insert into public.teachback_sessions
+select lives_ok($$with inserted as (
+ insert into public.teachback_sessions
  (organization_id,patient_id,care_plan_id,created_by)
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.patient_id')::uuid,
- current_setting('test.care_plan_id')::uuid,'30000000-0000-4000-8000-000000000003')$$,
+ current_setting('test.care_plan_id')::uuid,'30000000-0000-4000-8000-000000000003')
+ returning id
+)
+select set_config('test.session_id',id::text,true) from inserted$$,
  'assigned clinician creates draft session');
-select set_config('test.session_id',(
- select id::text from public.teachback_sessions
- where patient_id=current_setting('test.patient_id')::uuid
- order by created_at desc limit 1
-),true);
 select throws_ok($$insert into public.session_instructions
  (organization_id,session_id,instruction_item_id,instruction_version_id)
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.session_id')::uuid,
@@ -275,16 +272,15 @@ select throws_ok(
  '23514',null,'terminal session cannot be reopened');
 
 -- A prepared session must never return to draft, because its approved snapshots are immutable.
-select lives_ok($$insert into public.teachback_sessions
+select lives_ok($$with inserted as (
+ insert into public.teachback_sessions
  (organization_id,patient_id,care_plan_id,created_by)
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.patient_id')::uuid,
- current_setting('test.care_plan_id')::uuid,'30000000-0000-4000-8000-000000000003')$$,
+ current_setting('test.care_plan_id')::uuid,'30000000-0000-4000-8000-000000000003')
+ returning id
+)
+select set_config('test.reversion_session_id',id::text,true) from inserted$$,
  'clinician creates a second session for transition-boundary coverage');
-select set_config('test.reversion_session_id',(
- select id::text from public.teachback_sessions
- where patient_id=current_setting('test.patient_id')::uuid and status='draft'
- order by created_at desc limit 1
-),true);
 select lives_ok($$insert into public.session_instructions
  (organization_id,session_id,instruction_item_id,instruction_version_id)
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.reversion_session_id')::uuid,
