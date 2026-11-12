@@ -67,6 +67,10 @@ The patient portal must not expose clinician-only notes, drafts, AI internal rea
 
 Organization administration should be presented within a dedicated settings area, not mixed into clinical patient navigation. It manages organization profile, membership invitations, explicit capabilities, and audit history. Administrative status alone must never grant clinical record access.
 
+## Locale and route behavior
+
+The route map above remains locale-neutral. English, French, and Arabic are selected through a persistent, validated locale preference, with Accept-Language negotiation on first visit and English as the fallback. The root layout sets lang and dir; Arabic receives true RTL behavior. API and auth callback paths remain stable. See [Internationalization and RTL architecture](internationalization-architecture.md).
+
 ## Core user journeys
 
 ### Clinician onboarding
