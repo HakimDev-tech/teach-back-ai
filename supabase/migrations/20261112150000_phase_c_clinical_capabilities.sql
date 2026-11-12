@@ -13,7 +13,7 @@ create table public.organization_clinical_capabilities (
   verification_status text not null default 'pending'
     check (verification_status in ('pending', 'verified', 'rejected', 'expired')),
   verification_method text null
-    check (verification_method is null or char_length(btrim(verification_method)) between 2 and 80),
+    check (verification_method is null or verification_method = 'manual_review'),
   requested_by uuid not null references public.profiles(id) on delete restrict,
   verified_by uuid null references public.profiles(id) on delete restrict,
   verified_at timestamptz null,
@@ -117,17 +117,14 @@ as $body$
     where m.organization_id = target_org
       and m.user_id = target_user
       and m.status = 'active'
-      and (
-        m.role = 'clinician'
-        or exists (
-          select 1
-          from public.organization_clinical_capabilities c
-          where c.organization_id = m.organization_id
-            and c.user_id = m.user_id
-            and c.status = 'active'
-            and c.verification_status = 'verified'
-            and (c.expires_at is null or c.expires_at > pg_catalog.now())
-        )
+      and exists (
+        select 1
+        from public.organization_clinical_capabilities c
+        where c.organization_id = m.organization_id
+          and c.user_id = m.user_id
+          and c.status = 'active'
+          and c.verification_status = 'verified'
+          and (c.expires_at is null or c.expires_at > pg_catalog.now())
       )
   );
 $body$;
@@ -335,9 +332,9 @@ begin
     raise exception 'only pending capability requests can be approved' using errcode = '23514';
   end if;
 
-  if target_verification_method is null
-    or char_length(btrim(target_verification_method)) not between 2 and 80 then
-    raise exception 'verification method is required' using errcode = '22023';
+  if target_verification_method is distinct from 'manual_review' then
+    raise exception 'only organization manual review is currently supported'
+      using errcode = '22023';
   end if;
 
   update public.organization_clinical_capabilities
@@ -496,3 +493,8 @@ $body$;
 
 revoke all on function public.revoke_clinical_capability(uuid, text) from public, anon;
 grant execute on function public.revoke_clinical_capability(uuid, text) to authenticated;
+
+comment on table public.organization_clinical_capabilities is
+  'Organization-level clinical access attestation. Manual review is not an external license-registry validation or regulatory credential certification.';
+comment on column public.organization_clinical_capabilities.verification_method is
+  'Currently restricted to manual_review; external credential integrations are not configured.';
