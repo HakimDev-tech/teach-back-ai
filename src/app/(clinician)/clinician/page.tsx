@@ -77,7 +77,7 @@ export default async function ClinicianHomePage() {
                   <span className="text-sm font-medium text-ink">
                     {t("clinician.organizationAccess")}
                   </span>
-                  <Badge variant={membership.role === "clinician" ? "success" : "neutral"}>
+                  <Badge variant="neutral">
                     {roleMessageKeys[membership.role]
                       ? t(roleMessageKeys[membership.role])
                       : membership.role}
