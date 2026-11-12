@@ -10,6 +10,14 @@ function createRepository(result: { data?: unknown; error: unknown }) {
 }
 
 describe("ClinicalCapabilityRepository", () => {
+  it("lists only the caller's capability records through the RLS-scoped RPC", async () => {
+    const capability = { id: "capability-id", is_expired: false };
+    const { repository, rpc } = createRepository({ data: [capability], error: null });
+
+    await expect(repository.listMine()).resolves.toEqual([capability]);
+    expect(rpc).toHaveBeenCalledWith("list_my_clinical_capabilities");
+  });
+
   it("lists the organization review queue through the admin-only RPC", async () => {
     const request = { capability_id: "capability-id", status: "pending" };
     const { repository, rpc } = createRepository({ data: [request], error: null });
