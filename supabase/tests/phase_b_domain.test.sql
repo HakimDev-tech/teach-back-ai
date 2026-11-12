@@ -160,10 +160,12 @@ select set_config('test.question_id',(
 ),true);
 select lives_ok($$select public.approve_question(current_setting('test.question_id')::uuid)$$,
  'clinician approves question explicitly');
+reset role;
 select throws_ok(
- $$update public.questions set question_text='Changed after approval' where id=current_setting('test.question_id')::uuid$$,
+ $update public.questions set question_text='Changed after approval' where id=current_setting('test.question_id')::uuid$,
  '55000',null,'approved question content is immutable');
-select lives_ok($$select public.transition_session(current_setting('test.session_id')::uuid,1,'ready')$$,
+set local role authenticated;
+select lives_ok($select public.transition_session(current_setting('test.session_id')::uuid,1,'ready')$$,
  'session can become ready with approved snapshots and questions');
 select lives_ok($$select public.transition_session(current_setting('test.session_id')::uuid,2,'in_progress')$$,
  'ready session can be published and started');

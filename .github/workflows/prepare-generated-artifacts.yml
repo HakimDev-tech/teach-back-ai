@@ -1,8 +1,8 @@
 name: Prepare generated development artifacts
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: supabase-${{ github.ref }}
+  cancel-in-progress: false
 
 on:
   push:
@@ -23,6 +23,9 @@ jobs:
       - uses: supabase/setup-cli@v3
         with:
           version: 3.0.0
+      - name: Create migration scaffold when requested
+        if: contains(github.event.head_commit.message, '[new-migration]')
+        run: supabase migration new phase_b_domain_hardening
       - name: Install dependencies and create npm lockfile
         run: npm install --no-audit --no-fund
       - name: Start clean local Supabase
