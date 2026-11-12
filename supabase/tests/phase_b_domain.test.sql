@@ -1,5 +1,5 @@
 begin;
-select plan(98);
+select plan(100);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
@@ -429,6 +429,26 @@ select lives_ok($cap$select set_config('test.owner_capability_id',
   )::text,true)$cap$,
   'owner can request a separate clinical capability');
 
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select is((select count(*) from public.list_clinical_capability_requests(
+  '40000000-0000-4000-8000-000000000001'
+) where capability_id=current_setting('test.owner_capability_id')::uuid),1::bigint,
+  'organization admin can list a pending capability request with minimal identity data');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000003',true);
+select throws_ok(
+  $cap$select * from public.list_clinical_capability_requests(
+    '40000000-0000-4000-8000-000000000001'
+  )$cap$,
+  '42501',null,'clinicians cannot enumerate organization capability requests');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
 select throws_ok(
   $cap$select public.approve_clinical_capability(
     current_setting('test.owner_capability_id')::uuid,'manual_review'
