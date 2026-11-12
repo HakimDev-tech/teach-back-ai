@@ -134,6 +134,55 @@ as $body$
   );
 $body$;
 
+create or replace function private.validate_patient_assignment()
+returns trigger
+language plpgsql
+set search_path = ''
+as $body$
+begin
+  if new.status = 'active' and not exists (
+    select 1
+    from public.organization_memberships m
+    where m.organization_id = new.organization_id
+      and m.user_id = new.clinician_user_id
+      and m.status = 'active'
+      and (
+        m.role = 'clinician'
+        or (
+          m.role in ('owner', 'admin')
+          and private.has_clinical_capability(new.organization_id, new.clinician_user_id)
+        )
+      )
+  ) then
+    raise exception 'assignment target must have active clinical authorization in this organization'
+      using errcode = '23514';
+  end if;
+
+  if new.status = 'active' and not exists (
+    select 1
+    from public.patients p
+    where p.organization_id = new.organization_id
+      and p.id = new.patient_id
+      and p.status = 'active'
+  ) then
+    raise exception 'archived patients cannot receive active assignments' using errcode = '23514';
+  end if;
+
+  if new.status = 'active' and not exists (
+    select 1
+    from public.organization_memberships m
+    where m.organization_id = new.organization_id
+      and m.user_id = new.assigned_by
+      and m.status = 'active'
+      and m.role in ('owner', 'admin', 'clinician')
+  ) then
+    raise exception 'assigner must be an active organization member' using errcode = '42501';
+  end if;
+
+  return new;
+end;
+$body$;
+
 revoke all on function private.is_platform_verifier() from public, anon;
 grant execute on function private.is_platform_verifier() to authenticated;
 
