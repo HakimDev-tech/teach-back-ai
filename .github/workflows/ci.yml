@@ -30,7 +30,7 @@ jobs:
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          migration_name="$(printf '%s' "$COMMIT_MESSAGE" | sed -nE 's/.*\\[new-migration:([a-z0-9_]+)\\].*/\\1/p')"
+          migration_name="$(printf '%s' "$COMMIT_MESSAGE" | sed -nE 's/.*\[new-migration:([a-z0-9_]+)\].*/\1/p')"
           if [ -z "$migration_name" ]; then
             echo "::error::Use [new-migration:snake_case_name] in the commit subject."
             exit 1
