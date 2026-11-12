@@ -316,24 +316,24 @@ select ok(not has_table_privilege('anon','public.organization_clinical_capabilit
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
-select lives_ok($select set_config('test.owner_capability_id',
+select lives_ok($cap$select set_config('test.owner_capability_id',
   public.request_clinical_capability(
     '40000000-0000-4000-8000-000000000001','physician'
-  )::text,true)$,
+  )::text,true)$cap$,
   'owner can request a separate clinical capability');
 
 select throws_ok(
-  $select public.approve_clinical_capability(
+  $cap$select public.approve_clinical_capability(
     current_setting('test.owner_capability_id')::uuid,'manual_review'
-  )$,
+  )$cap$,
   '42501',null,'a member cannot approve their own clinical capability');
 
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
-select lives_ok($select public.approve_clinical_capability(
+select lives_ok($cap$select public.approve_clinical_capability(
   current_setting('test.owner_capability_id')::uuid,'manual_review'
-)$,
+)$cap$,
   'another active organization admin can verify and grant clinical capability');
 
 reset role;
@@ -346,11 +346,11 @@ select is((select count(*) from public.patients
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
-select lives_ok($select public.assign_patient_clinician(
+select lives_ok($cap$select public.assign_patient_clinician(
   '40000000-0000-4000-8000-000000000001',
   current_setting('test.patient_id')::uuid,
   '30000000-0000-4000-8000-000000000001'
-)$,
+)$cap$,
   'admin can assign a verified owner-clinician to a patient');
 
 reset role;
@@ -363,9 +363,9 @@ select is((select count(*) from public.patients
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
-select lives_ok($select public.suspend_clinical_capability(
+select lives_ok($cap$select public.suspend_clinical_capability(
   current_setting('test.owner_capability_id')::uuid,'verification paused'
-)$,
+)$cap$,
   'organization admin can suspend a clinical capability');
 
 reset role;
@@ -378,9 +378,9 @@ select is((select count(*) from public.patients
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
-select lives_ok($select public.revoke_clinical_capability(
+select lives_ok($cap$select public.revoke_clinical_capability(
   current_setting('test.owner_capability_id')::uuid,'capability withdrawn'
-)$,
+)$cap$,
   'organization admin can revoke a suspended clinical capability');
 
 reset role;
@@ -390,20 +390,20 @@ select is((select count(*) from public.patients
   where id=current_setting('test.patient_id')::uuid),0::bigint,
   'revoking clinical capability immediately removes clinical access');
 
-select lives_ok($select set_config('test.expired_capability_id',
+select lives_ok($cap$select set_config('test.expired_capability_id',
   public.request_clinical_capability(
     '40000000-0000-4000-8000-000000000001','physician'
-  )::text,true)$,
+  )::text,true)$cap$,
   'a revoked member may submit a new capability request');
 
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
-select lives_ok($select public.approve_clinical_capability(
+select lives_ok($cap$select public.approve_clinical_capability(
   current_setting('test.expired_capability_id')::uuid,
   'manual_review',
   pg_catalog.now() - interval '1 day'
-)$,
+)$cap$,
   'capability grants may carry an explicit expiry');
 
 reset role;
@@ -412,9 +412,9 @@ select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001'
 select is((select count(*) from public.patients
   where id=current_setting('test.patient_id')::uuid),0::bigint,
   'expired clinical capability does not authorize patient record access');
-select lives_ok($select public.request_clinical_capability(
+select lives_ok($cap$select public.request_clinical_capability(
   '40000000-0000-4000-8000-000000000001','physician'
-)$,
+)$cap$,
   'member can request renewal after an expired clinical capability is closed');
 
 select * from finish();
