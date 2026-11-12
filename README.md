@@ -26,6 +26,8 @@ A clinician-guided platform for verifying whether patients understand their care
 5. Apply migrations: `npx supabase db reset`.
 6. Start Next.js: `npm run dev`.
 
+The local PostgreSQL port is configured as `55432` (shadow database: `55430`) to avoid collisions with services using the default PostgreSQL ports.
+
 Local email confirmation is disabled only for local development. Hosted environments must configure email confirmation, SMTP, redirect allowlists, and production auth policy explicitly.
 
 ## Database commands
