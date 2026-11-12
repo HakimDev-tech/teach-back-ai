@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { ApiError, apiRoute, requireAuthenticatedClient } from "./api";
@@ -16,7 +17,7 @@ afterEach(() => {
 describe("apiRoute", () => {
   it("returns a successful response without changing its status or body", async () => {
     const response = await apiRoute(async () =>
-      Response.json({ data: { id: "patient-1" } }, { status: 201 }) as never,
+      NextResponse.json({ data: { id: "patient-1" } }, { status: 201 }),
     );
 
     expect(response.status).toBe(201);
@@ -43,7 +44,7 @@ describe("apiRoute", () => {
     const schema = z.object({ fullName: z.string().min(2) });
     const response = await apiRoute(async () => {
       schema.parse({ fullName: "x", secret: "must-not-leak" });
-      return Response.json({});
+      return NextResponse.json({});
     });
 
     expect(response.status).toBe(422);
