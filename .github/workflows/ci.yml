@@ -6,7 +6,7 @@ concurrency:
 
 on:
   push:
-    branches: [main, "phase-a/**", "phase-b/**"]
+    branches: [main, "phase-a/**", "phase-b/**", "phase-0/**"]
   pull_request:
     branches: [main]
 
@@ -37,8 +37,10 @@ jobs:
       - name: Run pgTAP security tests
         run: supabase test db
       - name: Generate database types from the local schema
+        if: always()
         run: npm run db:types
       - name: Verify formatting
+        if: always()
         run: npm run format
       - name: Lint
         if: always()
