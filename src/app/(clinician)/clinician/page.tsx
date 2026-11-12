@@ -4,10 +4,19 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { formatNumber } from "@/i18n/format";
+import { getServerI18n } from "@/i18n/server";
+import type { MessageKey } from "@/i18n/messages";
 import { createClient } from "@/lib/supabase/server";
 
+const roleMessageKeys: Record<string, MessageKey> = {
+  owner: "role.owner",
+  admin: "role.admin",
+  clinician: "role.clinician",
+};
+
 export default async function ClinicianHomePage() {
-  const supabase = await createClient();
+  const [{ locale, t }, supabase] = await Promise.all([getServerI18n(), createClient()]);
   const {
     data: { user },
     error: authError,
@@ -28,43 +37,50 @@ export default async function ClinicianHomePage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        description="A secure starting point for authorized care workflows. Access is scoped to your organization membership, clinical capability, and active patient assignments."
-        eyebrow="CLINICIAN WORKSPACE"
-        title="Overview"
+        description={t("clinician.description")}
+        eyebrow={t("clinician.workspaceEyebrow")}
+        title={t("clinician.overview")}
       />
 
       {error ? (
         <Card>
-          <Badge variant="warning">Access check unavailable</Badge>
-          <h2 className="mt-4 font-display text-xl text-ink">Workspace access could not be loaded</h2>
+          <Badge variant="warning">{t("clinician.accessUnavailable")}</Badge>
+          <h2 className="mt-4 font-display text-xl text-ink">
+            {t("clinician.loadFailedTitle")}
+          </h2>
           <p className="mt-2 text-sm leading-6 text-ink-muted">
-            Refresh the page or try again later. No clinical records are displayed while access
-            cannot be verified.
+            {t("clinician.loadFailedDescription")}
           </p>
         </Card>
       ) : activeMemberships.length === 0 ? (
         <EmptyState
-          description="Your account is authenticated, but no active organization membership is linked to it. An authorized organization owner or administrator must grant access before clinical records become available."
-          title="Organization access is required"
+          description={t("clinician.organizationRequiredDescription")}
+          title={t("clinician.organizationRequiredTitle")}
         />
       ) : (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)]">
           <Card>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink-muted">
-              Organization access
+              {t("clinician.organizationAccess")}
             </p>
             <p className="mt-4 font-display text-5xl tabular-nums text-ink">
-              {activeMemberships.length}
+              {formatNumber(activeMemberships.length, locale)}
             </p>
             <p className="mt-2 text-sm text-ink-muted">
-              Active organization membership{activeMemberships.length === 1 ? "" : "s"}.
+              {activeMemberships.length === 1
+                ? t("clinician.activeMembershipSingular")
+                : t("clinician.activeMembershipPlural")}
             </p>
             <ul className="mt-6 space-y-3 border-t border-line pt-5">
               {activeMemberships.map((membership) => (
                 <li className="flex items-center justify-between gap-3" key={membership.id}>
-                  <span className="text-sm font-medium text-ink">Organization membership</span>
+                  <span className="text-sm font-medium text-ink">
+                    {t("clinician.organizationAccess")}
+                  </span>
                   <Badge variant={membership.role === "clinician" ? "success" : "neutral"}>
-                    {membership.role}
+                    {roleMessageKeys[membership.role]
+                      ? t(roleMessageKeys[membership.role])
+                      : membership.role}
                   </Badge>
                 </li>
               ))}
@@ -72,13 +88,13 @@ export default async function ClinicianHomePage() {
           </Card>
           <Card>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand">
-              Clinical access
+              {t("clinician.clinicalAccess")}
             </p>
-            <h2 className="mt-4 font-display text-2xl text-ink">Scoped by responsibility</h2>
+            <h2 className="mt-4 font-display text-2xl text-ink">
+              {t("clinician.scopedResponsibility")}
+            </h2>
             <p className="mt-3 text-sm leading-6 text-ink-muted">
-              Organization membership does not automatically grant access to patient records.
-              Clinical access requires the appropriate clinical capability and an active
-              patient-clinician assignment.
+              {t("clinician.clinicalAccessDescription")}
             </p>
           </Card>
         </div>

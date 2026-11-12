@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { InputField } from "@/components/ui/input-field";
+import { useI18n } from "@/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 
 const schema = z.object({
@@ -16,6 +17,7 @@ const schema = z.object({
 
 export function SignUpForm() {
   const router = useRouter();
+  const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -31,7 +33,7 @@ export function SignUpForm() {
     });
 
     if (!parsed.success) {
-      setError("Check your name, email, and password (minimum 12 characters).");
+      setError(t("auth.signUpValidation"));
       return;
     }
 
@@ -48,14 +50,14 @@ export function SignUpForm() {
       });
 
       if (authError) {
-        setError("Unable to create the account. Check the details or try again later.");
+        setError(t("auth.signUpFailed"));
         return;
       }
 
       router.replace("/sign-in?registered=1");
       router.refresh();
     } catch {
-      setError("The registration service is temporarily unavailable. Try again.");
+      setError(t("auth.serviceUnavailable"));
     } finally {
       setPending(false);
     }
@@ -63,12 +65,24 @@ export function SignUpForm() {
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit}>
-      <InputField autoComplete="name" label="Full name" maxLength={120} name="fullName" required />
-      <InputField autoComplete="email" label="Email address" name="email" required type="email" />
+      <InputField
+        autoComplete="name"
+        label={t("auth.fullName")}
+        maxLength={120}
+        name="fullName"
+        required
+      />
+      <InputField
+        autoComplete="email"
+        label={t("auth.email")}
+        name="email"
+        required
+        type="email"
+      />
       <InputField
         autoComplete="new-password"
-        hint="Use at least 12 characters."
-        label="Password"
+        hint={t("auth.passwordHint")}
+        label={t("auth.password")}
         maxLength={128}
         minLength={12}
         name="password"
@@ -76,12 +90,15 @@ export function SignUpForm() {
         type="password"
       />
       {error ? (
-        <p className="rounded-xl bg-danger-soft px-3.5 py-3 text-sm leading-5 text-danger" role="alert">
+        <p
+          className="rounded-xl bg-danger-soft px-3.5 py-3 text-sm leading-5 text-danger"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
       <Button className="w-full" disabled={pending} type="submit">
-        {pending ? "Creating account…" : "Create account"}
+        {pending ? t("auth.creatingAccount") : t("auth.signUpSubmit")}
       </Button>
     </form>
   );

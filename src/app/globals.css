@@ -86,6 +86,16 @@ select {
   font-family: Tahoma, "Noto Sans Arabic", "Segoe UI", sans-serif;
 }
 
+[dir="rtl"] .font-display {
+  font-family: Tahoma, "Noto Sans Arabic", "Segoe UI", sans-serif;
+}
+
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="password"] {
+  direction: ltr;
+  text-align: start;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

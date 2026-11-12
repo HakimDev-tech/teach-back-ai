@@ -1,21 +1,34 @@
 import type { Metadata } from "next";
 
+import { getDirection } from "@/i18n/config";
+import { I18nProvider } from "@/i18n/provider";
+import { getServerI18n } from "@/i18n/server";
+
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Teach-back AI — Understanding care",
-  description:
-    "A clinician-guided platform for checking patient understanding of care instructions.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getServerI18n();
 
-export default function RootLayout({
+  return {
+    title: t("meta.title"),
+    description: t("meta.description"),
+  };
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { locale, dictionary } = await getServerI18n();
+
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html dir={getDirection(locale)} lang={locale}>
+      <body>
+        <I18nProvider dictionary={dictionary} locale={locale}>
+          {children}
+        </I18nProvider>
+      </body>
     </html>
   );
 }

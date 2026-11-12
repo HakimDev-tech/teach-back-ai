@@ -68,13 +68,18 @@ export function InputField({
     <div>
       <label className="mb-1.5 block text-sm font-semibold text-ink" htmlFor={fieldId}>
         {label}
-        {props.required ? <span className="ms-1 text-accent" aria-hidden="true">*</span> : null}
+        {props.required ? (
+          <span aria-hidden="true" className="ms-1 text-accent">
+            *
+          </span>
+        ) : null}
       </label>
       <input
         {...props}
         aria-describedby={describedBy || undefined}
         aria-invalid={Boolean(error) || props["aria-invalid"]}
         className={cn(inputBase, inputSize === "lg" ? "min-h-12" : "min-h-11", className)}
+        dir={props.type === "email" || props.type === "password" ? "ltr" : undefined}
         id={fieldId}
       />
       <FieldMessages error={error} hint={hint} id={fieldId} />
@@ -104,7 +109,11 @@ export function TextareaField({
     <div>
       <label className="mb-1.5 block text-sm font-semibold text-ink" htmlFor={fieldId}>
         {label}
-        {props.required ? <span className="ms-1 text-accent" aria-hidden="true">*</span> : null}
+        {props.required ? (
+          <span aria-hidden="true" className="ms-1 text-accent">
+            *
+          </span>
+        ) : null}
       </label>
       <textarea
         {...props}

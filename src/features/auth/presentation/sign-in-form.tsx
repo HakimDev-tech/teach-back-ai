@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { InputField } from "@/components/ui/input-field";
+import { useI18n } from "@/i18n/provider";
 import { createClient } from "@/lib/supabase/client";
 
 const schema = z.object({
@@ -15,6 +16,7 @@ const schema = z.object({
 
 export function SignInForm() {
   const router = useRouter();
+  const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -29,7 +31,7 @@ export function SignInForm() {
     });
 
     if (!parsed.success) {
-      setError("Enter a valid email address and password.");
+      setError(t("auth.signInValidation"));
       return;
     }
 
@@ -38,13 +40,13 @@ export function SignInForm() {
       const supabase = createClient();
       const { error: authError } = await supabase.auth.signInWithPassword(parsed.data);
       if (authError) {
-        setError("Unable to sign in with those credentials.");
+        setError(t("auth.signInFailed"));
         return;
       }
       router.replace("/clinician");
       router.refresh();
     } catch {
-      setError("The sign-in service is temporarily unavailable. Try again.");
+      setError(t("auth.serviceUnavailable"));
     } finally {
       setPending(false);
     }
@@ -54,25 +56,28 @@ export function SignInForm() {
     <form className="space-y-5" onSubmit={handleSubmit}>
       <InputField
         autoComplete="email"
-        label="Email address"
+        label={t("auth.email")}
         name="email"
         required
         type="email"
       />
       <InputField
         autoComplete="current-password"
-        label="Password"
+        label={t("auth.password")}
         name="password"
         required
         type="password"
       />
       {error ? (
-        <p className="rounded-xl bg-danger-soft px-3.5 py-3 text-sm leading-5 text-danger" role="alert">
+        <p
+          className="rounded-xl bg-danger-soft px-3.5 py-3 text-sm leading-5 text-danger"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
       <Button className="w-full" disabled={pending} type="submit">
-        {pending ? "Signing in…" : "Sign in"}
+        {pending ? t("auth.signingIn") : t("auth.signInSubmit")}
       </Button>
     </form>
   );
