@@ -161,7 +161,7 @@ select set_config('test.question_id',(
 select lives_ok($$select public.approve_question(current_setting('test.question_id')::uuid)$$,
  'clinician approves question explicitly');
 select throws_ok(
- $$update public.questions set question_text='Changed after approval' where id=current_setting('test.question_id')::uuid$,
+ $$update public.questions set question_text='Changed after approval' where id=current_setting('test.question_id')::uuid$$,
  '55000',null,'approved question content is immutable');
 select lives_ok($$select public.transition_session(current_setting('test.session_id')::uuid,1,'ready')$$,
  'session can become ready with approved snapshots and questions');
