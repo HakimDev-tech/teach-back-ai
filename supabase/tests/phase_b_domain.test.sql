@@ -158,20 +158,20 @@ select lives_ok($$insert into public.questions
 select set_config('test.question_id',(
  select id::text from public.questions where session_id=current_setting('test.session_id')::uuid
 ),true);
-select lives_ok($select public.approve_question(current_setting('test.question_id')::uuid)$,
+select lives_ok($$select public.approve_question(current_setting('test.question_id')::uuid)$$,
  'clinician approves question explicitly');
 select throws_ok(
- $update public.questions set question_text='Changed after approval' where id=current_setting('test.question_id')::uuid$,
+ $$update public.questions set question_text='Changed after approval' where id=current_setting('test.question_id')::uuid$$,
  '55000',null,'approved question content is immutable');
 select lives_ok($$select public.transition_session(current_setting('test.session_id')::uuid,1,'ready')$$,
  'session can become ready with approved snapshots and questions');
 select lives_ok($$select public.transition_session(current_setting('test.session_id')::uuid,2,'in_progress')$$,
  'ready session can be published and started');
 select throws_ok(
- $select public.transition_session(current_setting('test.session_id')::uuid,2,'cancelled')$,
+ $$select public.transition_session(current_setting('test.session_id')::uuid,2,'cancelled')$$,
  '40001',null,'stale session version is rejected');
 select throws_ok(
- $select public.transition_session(current_setting('test.session_id')::uuid,3,'completed')$,
+ $$select public.transition_session(current_setting('test.session_id')::uuid,3,'completed')$$,
  '23514',null,'session cannot bypass the clinician review workflow');
 
 select set_config('test.response_id',public.save_response_draft(
@@ -184,16 +184,16 @@ select is(public.save_response_draft(
  '50000000-0000-4000-8000-000000000001',
  'I will follow the schedule that my clinician approved and take it with food.',1
 ),current_setting('test.response_id')::uuid,'same idempotency key returns the same draft response');
-select lives_ok($select public.submit_response(current_setting('test.response_id')::uuid)$,
+select lives_ok($$select public.submit_response(current_setting('test.response_id')::uuid)$$,
  'response submission is persisted through controlled RPC');
 select is(
  public.submit_response(current_setting('test.response_id')::uuid),
  current_setting('test.response_id')::uuid,
  'submitting an already submitted response is idempotent');
 select throws_ok(
- $select public.save_response_draft(current_setting('test.session_id')::uuid,
+ $$select public.save_response_draft(current_setting('test.session_id')::uuid,
  current_setting('test.question_id')::uuid,'50000000-0000-4000-8000-000000000001',
- 'Reused idempotency key with a different attempt',2)$,
+ 'Reused idempotency key with a different attempt',2)$$,
  '23505',null,'idempotency key cannot be reused for a different attempt');
 update public.responses set response_text='attempted overwrite'
  where id=current_setting('test.response_id')::uuid;
