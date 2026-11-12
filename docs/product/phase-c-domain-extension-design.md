@@ -18,7 +18,7 @@ All development and hackathon fixtures remain synthetic. No real patient informa
 
 ### Existing constraint
 
-organization_memberships permits exactly one role per user and organization: owner, admin, or clinician. Clinical access requires the clinician role plus an active patient assignment. Owners and admins can manage assignments but cannot read clinical records.
+organization_memberships permits exactly one role per user and organization: owner, admin, or clinician. Baseline clinical access requires the clinician role plus an active patient assignment. Owners and admins can manage assignments but cannot read clinical records. Phase C will replace the role-as-credential assumption with an independently verified clinical capability for every clinical actor.
 
 This is a correct least-privilege boundary, but it cannot represent an owner who is also a clinician.
 
@@ -31,7 +31,7 @@ Conceptual fields:
 | Field | Purpose |
 |---|---|
 | organization_id, user_id | Composite reference to an existing organization membership |
-| status | pending, active, suspended, revoked |
+| status | pending, verified, active, rejected, suspended, revoked, expired |
 | professional_type | Minimal professional category required by the workflow |
 | verification_status | pending, verified, rejected, expired |
 | verification_method | Manual or documented external verification method |
@@ -46,13 +46,15 @@ Do not collect or retain a full professional license identifier unless a documen
 A user may read or modify clinical records only when all of the following hold:
 
 1. The user has an active organization membership.
-2. The user has clinical capability: either the existing clinician membership role or an active, verified clinical-capability grant.
+2. The user has an active, verified clinical-capability grant. An organization role of clinician, owner, or admin is not by itself a clinical credential.
 3. The user has an active assignment to the target patient.
 4. The target patient and organization are active and match the record being accessed.
 
 Owners/admins retain assignment and organization-management permissions but gain no clinical access from those roles alone. An owner/admin who is also a clinician must receive an explicit verified clinical capability.
 
-A user must not approve their own clinical-capability request. A solo-practitioner owner therefore needs an independent verification path; self-approval is not an acceptable shortcut. For synthetic hackathon fixtures, verified capability may be seeded explicitly and identified as test data.
+A user must not approve their own clinical-capability request. A solo-practitioner owner therefore needs an independent verification path; self-approval is not an acceptable shortcut. Provision a private.platform_verifiers allowlist through trusted database operations only; never expose writes to this table to authenticated application users. A platform verifier reviews a pending request, then an organization owner/admin grants the verified capability. A platform verifier may grant a verified capability to an owner/admin who is the sole administrator, but cannot thereby access patient records. For synthetic hackathon fixtures, verified capability may be seeded explicitly and identified as test data.
+
+Use a history-preserving organization_clinical_capability_requests table with a partial unique index allowing only one pending/verified/active request per organization/user. The request lifecycle is pending → verified → active, or pending → rejected; active may become suspended, revoked, or expired. Retain reviewer/grantor identities and timestamps. A rejected, revoked, suspended, or expired request may be followed by a new request. Do not store license numbers or credential documents in this table.
 
 Update authorization helpers and assignment validation atomically. Do not scatter role checks across API routes.
 
@@ -215,7 +217,7 @@ The database, not the browser, assigns attempt_number.
 
 The current RPC's caller-supplied attempt number must be removed from the patient-facing contract and validated/derived inside the database function.
 
-Before a session becomes ready, every session instruction snapshot must be covered by at least one approved question. The current Phase B transition checks only that at least one approved question exists overall; it does not enforce per-instruction coverage.
+Before a session becomes ready, every session instruction snapshot must be covered by at least one approved question. This publication invariant is now enforced by migration 20261112140115_phase_c_instruction_question_coverage.sql and covered by pgTAP.
 
 ### Session lifecycle
 
@@ -280,9 +282,9 @@ AI is a later phase and consumes the approved domain model; it does not own it.
 
 ## 10. Additive migration and verification sequence
 
-Do not rewrite or delete the Phase A/B migrations. The first additive migration is named phase_c_instruction_question_coverage and closes the publication invariant before patient access is enabled. Implement subsequent additive migrations in this order:
+Do not rewrite or delete the Phase A/B migrations. Migration `phase_c_instruction_question_coverage` is already implemented. The next additive migration is named `phase_c_clinical_capability_verification`. Implement subsequent additive migrations in this order:
 
-1. Clinical capability records and authorization-helper extension, with explicit compatibility/backfill behavior.
+1. `phase_c_clinical_capability_verification`: verified clinical capabilities, private platform-verifier allowlist, and authorization-helper updates.
 2. Organization invitations and patient invitation codes, plus patient access grants.
 3. Patient-specific RLS policies, safe projections, and patient RPCs.
 4. Response reviews, clarifications, audit events, and immutable-history guards.
