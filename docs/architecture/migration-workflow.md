@@ -2,6 +2,8 @@
 
 ## Creating a migration scaffold
 
+Next planned additive migration: `phase_c_clinical_capability_verification`.
+
 Create a normal reviewable commit whose subject contains:
 
     [new-migration: descriptive_snake_case_name]
