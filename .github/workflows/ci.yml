@@ -30,7 +30,7 @@ jobs:
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          migration_name="$(printf '%s' "$COMMIT_MESSAGE" | sed -nE 's/.*\[new-migration:([a-z0-9_]+)\].*/\1/p')"
+          migration_name="$(printf '%s' "$COMMIT_MESSAGE" | sed -nE 's/.*\[new-migration:[[:space:]]*([a-z0-9_]+)\].*/\1/p')"
           if [ -z "$migration_name" ]; then
             echo "::error::Use [new-migration:snake_case_name] in the commit subject."
             exit 1
@@ -38,44 +38,48 @@ jobs:
           supabase migration new "$migration_name"
       - uses: docker/setup-buildx-action@v3
       - name: Install dependencies
+        id: install_dependencies
         run: npm install --no-audit --no-fund
       - name: Start local Supabase
+        id: start_supabase
         run: supabase start
       - name: Apply migrations from a clean database
+        id: db_reset
         run: supabase db reset
       - name: Database lint
         run: npm run db:lint
       - name: Run pgTAP security tests
         run: supabase test db
       - name: Generate database types from the local schema
-        if: always()
+        if: ${{ !cancelled() && steps.db_reset.outcome == 'success' }}
         run: npm run db:types
       - name: Format repository in the CI workspace
-        if: always()
+        if: ${{ !cancelled() && steps.install_dependencies.outcome == 'success' }}
         run: npx prettier --write .
       - name: Verify formatting
-        if: always()
+        if: ${{ !cancelled() && steps.install_dependencies.outcome == 'success' }}
         run: npm run format
       - name: Lint
-        if: always()
+        if: ${{ !cancelled() && steps.install_dependencies.outcome == 'success' }}
         run: npm run lint
       - name: Type check
-        if: always()
+        if: ${{ !cancelled() && steps.install_dependencies.outcome == 'success' }}
         run: npm run typecheck
       - name: Unit tests
-        if: always()
+        if: ${{ !cancelled() && steps.install_dependencies.outcome == 'success' }}
         run: npm test
       - name: Dependency audit
-        if: always()
+        if: ${{ !cancelled() && steps.install_dependencies.outcome == 'success' }}
         run: npm audit --audit-level=high
       - name: Production build
-        if: always()
+        if: ${{ !cancelled() && steps.install_dependencies.outcome == 'success' }}
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
       - name: Package generated development artifacts
-        if: always()
+        id: package_artifacts
+        if: ${{ !cancelled() && steps.install_dependencies.outcome == 'success' }}
         run: |
           git ls-files -m -o --exclude-standard > /tmp/changed-files.txt
           if [ -s /tmp/changed-files.txt ]; then
@@ -84,7 +88,7 @@ jobs:
             printf "No generated or modified files were produced.\n" > phase-b-generated-files.txt
           fi
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ !cancelled() && steps.package_artifacts.outcome == 'success' }}
         with:
           name: phase-b-generated-files
           path: |
@@ -93,5 +97,5 @@ jobs:
           if-no-files-found: error
           retention-days: 3
       - name: Stop local Supabase
-        if: always()
+        if: ${{ always() && steps.start_supabase.outcome == 'success' }}
         run: supabase stop --no-backup
