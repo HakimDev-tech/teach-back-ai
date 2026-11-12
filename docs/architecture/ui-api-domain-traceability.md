@@ -15,8 +15,8 @@
 | Clinician overview | View active memberships | Server Component reads current user's active organization memberships under RLS | Read-only |
 | Clinician overview | View clinical access explanation | Static explanation of the current least-privilege model | Informational only |
 | Clinician navigation | Open patient directory | Responsive desktop/mobile navigation to /clinician/patients | Functional navigation |
-| Patient directory | View assigned patients | Server Component queries clinician memberships, organization names, and patient rows; RLS filters patient records to active assignments | Persisted, read-only; capped at 100 |
-| Patient directory | Create patient | Client form POSTs to /api/patients; create_patient RPC creates the patient and creator assignment atomically; page refreshes from persisted data | Persisted |
+| Patient directory | View assigned patients | Server Component queries active, unexpired verified clinical-capability grants, organization names, and patient rows; RLS independently enforces capability and active patient assignment | Persisted, read-only; capped at 100 |
+| Patient directory | Create patient | Client form POSTs to /api/patients; create_patient RPC requires active verified clinical capability and creates the patient and creator assignment atomically; page refreshes from persisted data | Persisted |
 
 The interface still does not expose patient profiles/history, care-plan authoring, instruction approval, session preparation, response review, patient access, or organization administration. Patient creation is not patient invitation: no patient identity or portal access is granted by this operation. Do not describe unimplemented journeys as complete merely because API/database primitives exist.
 
