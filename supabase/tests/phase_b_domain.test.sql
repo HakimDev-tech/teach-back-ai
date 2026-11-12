@@ -1,5 +1,5 @@
 begin;
-select plan(51);
+select plan(52);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
@@ -158,6 +158,8 @@ select lives_ok($$insert into public.questions
 select set_config('test.question_id',(
  select id::text from public.questions where session_id=current_setting('test.session_id')::uuid
 ),true);
+select lives_ok($$update public.questions set question_text='Please describe how you will take this medicine.' where id=current_setting('test.question_id')::uuid$$,
+ 'clinician can edit a draft question before approval');
 select lives_ok($$select public.approve_question(current_setting('test.question_id')::uuid)$$,
  'clinician approves question explicitly');
 reset role;
