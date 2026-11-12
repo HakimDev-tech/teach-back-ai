@@ -215,6 +215,8 @@ The database, not the browser, assigns attempt_number.
 
 The current RPC's caller-supplied attempt number must be removed from the patient-facing contract and validated/derived inside the database function.
 
+Before a session becomes ready, every session instruction snapshot must be covered by at least one approved question. The current Phase B transition checks only that at least one approved question exists overall; it does not enforce per-instruction coverage.
+
 ### Session lifecycle
 
 Recommended lifecycle:
@@ -302,6 +304,7 @@ Each migration must be tested from a clean database and against the existing sch
 - Patient cannot read drafts, internal reviews, unapproved clarifications, or AI evaluation artifacts.
 - Patient can read only approved published instructions/questions and their own response data.
 - Patient cannot submit to a cancelled, expired, unpublished, or another patient's session.
+- Every instruction snapshot in a published session has at least one approved question.
 - Response attempts are sequential and cannot skip/reuse attempt numbers.
 - Same idempotency key returns the same attempt; a different payload/attempt cannot reuse it.
 - Submitted responses, reviews, and approved clarifications are immutable.
