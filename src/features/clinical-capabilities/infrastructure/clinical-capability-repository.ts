@@ -3,6 +3,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export class ClinicalCapabilityRepository {
   constructor(private readonly supabase: SupabaseClient) {}
 
+  async listForOrganization(organizationId: string) {
+    const { data, error } = await this.supabase.rpc("list_clinical_capability_requests", {
+      target_org: organizationId,
+    });
+    if (error) throw error;
+    return data ?? [];
+  }
+
   async request(organizationId: string, professionalType: string): Promise<string> {
     const { data, error } = await this.supabase.rpc("request_clinical_capability", {
       target_org: organizationId,
