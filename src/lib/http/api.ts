@@ -23,8 +23,8 @@ export async function requireAuthenticatedClient() {
 }
 
 export async function apiRoute(
-  action: () => Promise<NextResponse>,
-): Promise<NextResponse> {
+  action: () => Promise<Response>,
+): Promise<Response> {
   try {
     return await action();
   } catch (error) {
