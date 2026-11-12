@@ -1,5 +1,5 @@
 begin;
-select plan(100);
+select plan(101);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
@@ -536,6 +536,9 @@ select lives_ok($cap$select public.approve_clinical_capability(
   pg_catalog.now() - interval '1 day'
 )$cap$,
   'capability grants may carry an explicit expiry');
+select is((select is_expired from public.list_my_clinical_capabilities()
+  where id=current_setting('test.expired_capability_id')::uuid),true,
+  'member-scoped capability list reports expiry using database time');
 
 reset role;
 set local role authenticated;
