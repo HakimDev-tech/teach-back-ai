@@ -255,6 +255,39 @@ begin
     raise exception 'member already has clinical capability' using errcode = '23505';
   end if;
 
+  if exists (
+    select 1
+    from public.organization_clinical_capabilities c
+    where c.organization_id = target_org
+      and c.user_id = caller_id
+      and c.status = 'pending'
+  ) then
+    raise exception 'a clinical capability request is already pending' using errcode = '23505';
+  end if;
+
+  if exists (
+    select 1
+    from public.organization_clinical_capabilities c
+    where c.organization_id = target_org
+      and c.user_id = caller_id
+      and c.status = 'suspended'
+  ) then
+    raise exception 'a suspended capability requires administrator review' using errcode = '23514';
+  end if;
+
+  -- Expired grants are closed before a renewal request is inserted.
+  update public.organization_clinical_capabilities
+  set
+    status = 'revoked',
+    revoked_by = caller_id,
+    revoked_at = pg_catalog.now(),
+    revocation_reason = 'Expired capability; renewal requested'
+  where organization_id = target_org
+    and user_id = caller_id
+    and status = 'active'
+    and expires_at is not null
+    and expires_at <= pg_catalog.now();
+
   insert into public.organization_clinical_capabilities
     (organization_id, user_id, professional_type, status, verification_status, requested_by)
   values
