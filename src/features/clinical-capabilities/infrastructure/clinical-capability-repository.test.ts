@@ -10,6 +10,16 @@ function createRepository(result: { data?: unknown; error: unknown }) {
 }
 
 describe("ClinicalCapabilityRepository", () => {
+  it("lists the organization review queue through the admin-only RPC", async () => {
+    const request = { capability_id: "capability-id", status: "pending" };
+    const { repository, rpc } = createRepository({ data: [request], error: null });
+
+    await expect(repository.listForOrganization("org-id")).resolves.toEqual([request]);
+    expect(rpc).toHaveBeenCalledWith("list_clinical_capability_requests", {
+      target_org: "org-id",
+    });
+  });
+
   it("requests a capability through the atomic RPC", async () => {
     const { repository, rpc } = createRepository({ data: "capability-id", error: null });
 
