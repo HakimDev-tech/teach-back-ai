@@ -3,6 +3,10 @@ import { ClinicalCapabilityRepository } from "@/features/clinical-capabilities/i
 export class ClinicalCapabilityService {
   constructor(private readonly repository: ClinicalCapabilityRepository) {}
 
+  listForOrganization(organizationId: string) {
+    return this.repository.listForOrganization(organizationId);
+  }
+
   request(input: { organizationId: string; professionalType: string }) {
     return this.repository.request(input.organizationId, input.professionalType);
   }
