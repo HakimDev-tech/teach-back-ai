@@ -18,21 +18,15 @@ export default async function ClinicianPatientsPage() {
 
   if (authError || !user) redirect("/sign-in");
 
-  const [membershipsResult, capabilitiesResult] = await Promise.all([
-    supabase
-      .from("organization_memberships")
-      .select("organization_id,role")
-      .eq("user_id", user.id)
-      .eq("status", "active"),
-    supabase
-      .from("organization_clinical_capabilities")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .eq("verification_status", "verified"),
-  ]);
+  const { data: capabilities, error: capabilityError } = await supabase
+    .from("organization_clinical_capabilities")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .eq("verification_status", "verified")
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
 
-  if (membershipsResult.error || capabilitiesResult.error) {
+  if (capabilityError) {
     return (
       <Card>
         <Badge variant="warning">{t("patients.unavailable")}</Badge>
@@ -42,12 +36,7 @@ export default async function ClinicianPatientsPage() {
   }
 
   const organizationIds = [
-    ...new Set([
-      ...(membershipsResult.data ?? [])
-        .filter((membership) => membership.role === "clinician")
-        .map((membership) => membership.organization_id),
-      ...(capabilitiesResult.data ?? []).map((capability) => capability.organization_id),
-    ]),
+    ...new Set((capabilities ?? []).map((capability) => capability.organization_id)),
   ];
 
   if (organizationIds.length === 0) {
