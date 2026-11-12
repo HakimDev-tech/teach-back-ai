@@ -1,5 +1,5 @@
 begin;
-select plan(84);
+select plan(85);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
@@ -412,6 +412,10 @@ select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001'
 select is((select count(*) from public.patients
   where id=current_setting('test.patient_id')::uuid),0::bigint,
   'expired clinical capability does not authorize patient record access');
+select lives_ok($select public.request_clinical_capability(
+  '40000000-0000-4000-8000-000000000001','physician'
+)$,
+  'member can request renewal after an expired clinical capability is closed');
 
 select * from finish();
 rollback;
