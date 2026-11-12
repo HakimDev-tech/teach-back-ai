@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-11-12  
 **Working branch:** `phase-c/product-execution`  
-**Audited source commit:** `ff6b2974435fb3bf0288fa00ca9630c410a9262c`  
+**Audited source commit:** `5d830ead2b630a12f41f9c62b2c78802890681c8`  
 **Validated source branch:** `phase-c/product-execution`  
 **Base domain commit:** `phase-b/business-domain` at `8f9f9a579b04977b640102b4557095efc71a2cc7`
 
@@ -25,7 +25,7 @@ Inspected the repository tree, README, product and architecture documentation, a
 - 16 API route files covering internal clinician operations.
 - 4 feature areas: patients, instructions, sessions, and responses.
 - 3 pgTAP test files and 3 Vitest test files.
-- Initial landing page, sign-in/sign-up pages, clinician shell, clinician access overview, and reusable UI primitives.
+- Initial landing page, sign-in/sign-up pages, clinician shell, clinician access overview, and reusable UI primitives; these existing screens are now localized in English, French, and Arabic.
 
 ## Implemented foundations
 
@@ -84,18 +84,19 @@ The validated Phase C branch includes these corrections:
 8. Migration 20261112140115_phase_c_instruction_question_coverage.sql requires at least one approved question for every instruction snapshot before a session can become ready.
 9. pgTAP fixtures capture inserted session/item/question identifiers with INSERT ... RETURNING instead of ordering rows by created_at within a transaction.
 10. CI now guards downstream checks on their prerequisites and continues independent Node checks after database-test failures.
+11. A typed locale layer now supports English, French, and Arabic, including Accept-Language negotiation, a persistent preference cookie, localized existing screens, and root-level lang/dir. No additional i18n dependency was introduced.
 
 ## Verification evidence
 
-GitHub Actions: [CI run 43233106084](https://github.com/HakimDev-tech/teach-back-ai/actions/runs/43233106084)  
-Validated commit: `ff6b2974435fb3bf0288fa00ca9630c410a9262c`
+GitHub Actions: [CI run 43234578773](https://github.com/HakimDev-tech/teach-back-ai/actions/runs/43234578773)  
+Validated commit: `5d830ead2b630a12f41f9c62b2c78802890681c8`
 
 | Check | Observed result |
 |---|---:|
 | Clean local database reset and migrations | Passed |
 | Supabase database lint | Passed — no schema errors |
 | pgTAP | Passed — 105/105 assertions across 3 files |
-| Vitest | Passed — 3 files, 21 tests |
+| Vitest | Passed — 5 files, 26 tests, including locale negotiation and dictionary parity |
 | ESLint | Passed |
 | TypeScript strict check | Passed |
 | npm audit | Passed — 0 vulnerabilities reported |
@@ -163,7 +164,7 @@ No HIPAA, GDPR, or other compliance claim is supported by the current evidence.
 
 The green CI validates the existing foundation; it does not validate the full product.
 
-- Vitest currently has 21 tests focused on API error mapping, environment validation, and patient repository behavior.
+- Vitest currently has 26 tests across five files, covering API contracts, environment validation, patient repository behavior, locale negotiation, and translation-key parity.
 - pgTAP has 105 assertions covering core schema, grants, RLS, selected tenant boundaries, state transitions, per-instruction question coverage, immutability, and idempotency.
 - There are no Playwright end-to-end tests.
 - There are no complete browser tests for authentication/onboarding, clinician journeys, patient journeys, or organization administration.
@@ -191,8 +192,8 @@ The next phase must not add a patient-facing UI on top of the current clinician-
 
 - Working branch: `phase-c/product-execution`.
 - Branch base: `phase-b/world-class-product` at `47bef5d713ff8706e86a0d7286188cd6a8e482e8`.
-- Validated branch head: `ff6b2974435fb3bf0288fa00ca9630c410a9262c`.
-- Comparison with main: 81 commits ahead, 0 behind.
+- Validated branch head: `5d830ead2b630a12f41f9c62b2c78802890681c8`.
+- Comparison with main: 88 commits ahead, 0 behind.
 - `main` was not modified.
 - No merge or pull request was created.
 - The separate stabilization experiment branch is not merged into this working branch.
