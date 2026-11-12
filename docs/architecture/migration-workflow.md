@@ -10,7 +10,7 @@ The CI workflow runs the pinned Supabase CLI and executes:
 
     supabase migration new descriptive_snake_case_name
 
-Supabase CLI generates the timestamped filename. The workflow packages untracked/modified files as a short-lived artifact; it does not commit generated migrations automatically.
+Supabase CLI generates the timestamped filename. The workflow uploads the timestamped scaffold as a short-lived artifact immediately after creation, before starting the local database. It later packages all generated/modified files as a second artifact. It does not commit generated migrations automatically.
 
 ## Migration requirements
 
