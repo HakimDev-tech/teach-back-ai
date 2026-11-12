@@ -18,7 +18,7 @@ All development and hackathon fixtures remain synthetic. No real patient informa
 
 ### Existing constraint
 
-organization_memberships permits exactly one role per user and organization: owner, admin, or clinician. Baseline clinical access requires the clinician role plus an active patient assignment. Owners and admins can manage assignments but cannot read clinical records. Phase C will replace the role-as-credential assumption with an independently verified clinical capability for every clinical actor.
+organization_memberships permits exactly one role per user and organization: owner, admin, or clinician. Baseline clinical access requires the clinician role plus an active patient assignment. Owners and admins can manage assignments but cannot read clinical records. Phase C preserves that existing clinician-role path as an organization-level authorization, while adding an independently verified capability for an owner/admin who also performs clinical work. The clinician role is not an external license verification; no professional-registry integration is configured in this release.
 
 This is a correct least-privilege boundary, but it cannot represent an owner who is also a clinician.
 
@@ -31,7 +31,7 @@ Conceptual fields:
 | Field | Purpose |
 |---|---|
 | organization_id, user_id | Composite reference to an existing organization membership |
-| status | pending, verified, active, rejected, suspended, revoked, expired |
+| status | pending, verified, active, rejected, revoked, expired |
 | professional_type | Minimal professional category required by the workflow |
 | verification_status | pending, verified, rejected, expired |
 | verification_method | Manual or documented external verification method |
@@ -46,7 +46,7 @@ Do not collect or retain a full professional license identifier unless a documen
 A user may read or modify clinical records only when all of the following hold:
 
 1. The user has an active organization membership.
-2. The user has an active, verified clinical-capability grant. An organization role of clinician, owner, or admin is not by itself a clinical credential.
+2. The user either has the existing active clinician membership role, or has an active, verified clinical-capability grant for owner/admin dual-role work.
 3. The user has an active assignment to the target patient.
 4. The target patient and organization are active and match the record being accessed.
 
@@ -54,7 +54,9 @@ Owners/admins retain assignment and organization-management permissions but gain
 
 A user must not approve their own clinical-capability request. A solo-practitioner owner therefore needs an independent verification path; self-approval is not an acceptable shortcut. Provision a private.platform_verifiers allowlist through trusted database operations only; never expose writes to this table to authenticated application users. A platform verifier reviews a pending request, then an organization owner/admin grants the verified capability. A platform verifier may grant a verified capability to an owner/admin who is the sole administrator, but cannot thereby access patient records. For synthetic hackathon fixtures, verified capability may be seeded explicitly and identified as test data.
 
-Use a history-preserving organization_clinical_capability_requests table with a partial unique index allowing only one pending/verified/active request per organization/user. The request lifecycle is pending → verified → active, or pending → rejected; active may become suspended, revoked, or expired. Retain reviewer/grantor identities and timestamps. A rejected, revoked, suspended, or expired request may be followed by a new request. Do not store license numbers or credential documents in this table.
+Use a history-preserving organization_clinical_capability_requests table with a partial unique index allowing only one pending/verified/active request per organization/user. The request lifecycle is pending → verified → active, or pending → rejected; active may become revoked or expired. Retain reviewer/grantor identities and timestamps. A rejected, revoked, or expired request may be followed by a new request. Do not store license numbers or credential documents in this table.
+
+The application RPC boundary consists of request_clinical_capability, verify_clinical_capability, grant_clinical_capability, and revoke_clinical_capability. A user cannot verify their own request; a grantor cannot be the verifier. An organization owner/admin may grant a verified capability to another member. A platform verifier may grant to a sole owner/admin only when the verifier is not the reviewer, preventing a self-approved credential.
 
 Update authorization helpers and assignment validation atomically. Do not scatter role checks across API routes.
 
