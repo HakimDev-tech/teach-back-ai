@@ -73,6 +73,7 @@ create table public.organization_clinical_capability_requests (
         and reviewed_by is not null and reviewed_at is not null
         and expired_by is not null and expired_at is not null
         and revoked_by is null and revoked_at is null
+        and ((granted_by is null and granted_at is null) or (granted_by is not null and granted_at is not null))
       )
     ),
   constraint organization_clinical_capability_no_self_review_check
@@ -97,15 +98,6 @@ create trigger organization_clinical_capability_set_updated_at
   for each row execute function private.set_updated_at();
 
 alter table public.organization_clinical_capability_requests enable row level security;
-
-create policy organization_clinical_capability_select
-  on public.organization_clinical_capability_requests
-  for select to authenticated
-  using (
-    user_id = (select auth.uid())
-    or private.can_manage_assignments(organization_id)
-    or private.is_platform_verifier()
-  );
 
 revoke all on table public.organization_clinical_capability_requests from public, anon, authenticated;
 grant select on table public.organization_clinical_capability_requests to authenticated;
@@ -144,6 +136,16 @@ $body$;
 
 revoke all on function private.is_platform_verifier() from public, anon;
 grant execute on function private.is_platform_verifier() to authenticated;
+
+create policy organization_clinical_capability_select
+  on public.organization_clinical_capability_requests
+  for select to authenticated
+  using (
+    user_id = (select auth.uid())
+    or private.can_manage_assignments(organization_id)
+    or private.is_platform_verifier()
+  );
+
 revoke all on function private.has_clinical_capability(uuid, uuid) from public, anon;
 
 create or replace function private.can_access_patient(target_org uuid, target_patient uuid)
@@ -360,7 +362,7 @@ begin
     raise exception 'only pending requests can be reviewed' using errcode = '23514';
   end if;
 
-  if decision not in ('verified', 'rejected') then
+  if decision is null or decision not in ('verified', 'rejected') then
     raise exception 'decision must be verified or rejected' using errcode = '22023';
   end if;
 
