@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ResponseRepository } from "@/features/responses/infrastructure/response-repository";
 import { ResponseService } from "@/features/responses/application/response-service";
-import { apiRoute, requireAuthenticatedClient } from "@/lib/http/api";
+import { apiRoute, readJsonBody, requireAuthenticatedClient } from "@/lib/http/api";
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 const bodySchema = z.object({
@@ -16,7 +16,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   return apiRoute(async () => {
     const { supabase } = await requireAuthenticatedClient();
     const { id } = paramsSchema.parse(await context.params);
-    const body = bodySchema.parse(await request.json());
+    const body = bodySchema.parse(await readJsonBody(request));
     const responseId = await new ResponseService(new ResponseRepository(supabase)).saveDraft({
       sessionId: id,
       questionId: body.questionId,

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { ApiError, apiRoute, requireAuthenticatedClient } from "./api";
+import { ApiError, apiRoute, readJsonBody, requireAuthenticatedClient } from "./api";
 import { createClient } from "@/lib/supabase/server";
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -22,6 +22,23 @@ describe("apiRoute", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({
       data: { id: "patient-1" },
+    });
+  });
+
+  it("returns a stable 400 error for malformed JSON", async () => {
+    const request = new Request("https://example.test/api/patients", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{",
+    });
+    const response = await apiRoute(async () => {
+      await readJsonBody(request);
+      return Response.json({ data: true });
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "INVALID_JSON" },
     });
   });
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { SessionRepository } from "@/features/sessions/infrastructure/session-repository";
 import { SessionService } from "@/features/sessions/application/session-service";
-import { apiRoute, requireAuthenticatedClient } from "@/lib/http/api";
+import { apiRoute, readJsonBody, requireAuthenticatedClient } from "@/lib/http/api";
 
 const schema = z.object({
   organizationId: z.string().uuid(),
@@ -14,7 +14,7 @@ const schema = z.object({
 export async function POST(request: Request) {
   return apiRoute(async () => {
     const { supabase, user } = await requireAuthenticatedClient();
-    const body = schema.parse(await request.json());
+    const body = schema.parse(await readJsonBody(request));
     const session = await new SessionService(new SessionRepository(supabase)).create({
       organizationId: body.organizationId,
       patientId: body.patientId,

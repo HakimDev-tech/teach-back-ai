@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { PatientRepository } from "@/features/patients/infrastructure/patient-repository";
 import { PatientService } from "@/features/patients/application/patient-service";
-import { apiRoute, requireAuthenticatedClient } from "@/lib/http/api";
+import { apiRoute, readJsonBody, requireAuthenticatedClient } from "@/lib/http/api";
 
 const createSchema = z.object({
   organizationId: z.string().uuid(),
@@ -22,7 +22,7 @@ export const GET = (request: Request) =>
 export const POST = (request: Request) =>
   apiRoute(async () => {
     const { supabase } = await requireAuthenticatedClient();
-    const body = createSchema.parse(await request.json());
+    const body = createSchema.parse(await readJsonBody(request));
     const service = new PatientService(new PatientRepository(supabase));
     const id = await service.create({
       organizationId: body.organizationId,

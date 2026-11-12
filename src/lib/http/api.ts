@@ -22,6 +22,17 @@ export async function requireAuthenticatedClient() {
   return { supabase, user: data.user };
 }
 
+export async function readJsonBody(request: Request): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new ApiError(400, "INVALID_JSON", "The request body must contain valid JSON.");
+    }
+    throw error;
+  }
+}
+
 export async function apiRoute(
   action: () => Promise<Response>,
 ): Promise<Response> {
