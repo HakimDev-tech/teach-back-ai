@@ -89,7 +89,43 @@ export default async function ClinicianPatientsPage() {
             <EmptyState description={t("patients.emptyDescription")} title={t("patients.emptyTitle")} />
           ) : (
             <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_8px_28px_rgba(32,52,45,0.04)]">
-              <div className="overflow-x-auto">
+              <ul className="space-y-3 p-4 sm:hidden">
+                {patients.map((patient) => {
+                  const organization = organizations.find((item) => item.id === patient.organization_id);
+                  const languageKey =
+                    patient.preferred_language === "fr"
+                      ? "patients.languageFrench"
+                      : patient.preferred_language === "ar"
+                        ? "patients.languageArabic"
+                        : "patients.languageEnglish";
+
+                  return (
+                    <li className="rounded-xl border border-line bg-canvas p-4" key={patient.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm font-semibold text-ink">{patient.full_name}</p>
+                        <Badge variant={patient.status === "active" ? "success" : "neutral"}>
+                          {patient.status === "active" ? t("patients.statusActive") : t("patients.statusArchived")}
+                        </Badge>
+                      </div>
+                      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                        <div>
+                          <dt className="text-ink-muted">{t("patients.organization")}</dt>
+                          <dd className="mt-0.5 font-medium text-ink">{organization?.name ?? "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-ink-muted">{t("patients.preferredLanguage")}</dt>
+                          <dd className="mt-0.5 font-medium text-ink">{t(languageKey)}</dd>
+                        </div>
+                        <div className="col-span-2">
+                          <dt className="text-ink-muted">{t("patients.createdAt")}</dt>
+                          <dd className="mt-0.5 font-medium tabular-nums text-ink">{formatDate(patient.created_at, locale)}</dd>
+                        </div>
+                      </dl>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="w-full min-w-[38rem] border-collapse text-start">
                   <thead className="bg-surface-muted text-xs font-semibold text-ink-muted">
                     <tr>
