@@ -49,7 +49,7 @@ Inspected the repository tree (85 tracked files at the audited commit), README, 
 - Session-specific references to exact approved instruction versions.
 - Explicitly approved questions.
 - Optimistic, row-locked session transitions.
-- Response drafts, attempt numbers, idempotency keys, controlled submission, and immutable submitted responses.
+- Response drafts, attempt numbers, idempotency keys, controlled submission, and immutable submitted responses. The current RPC still accepts a caller-supplied attempt number and does not yet enforce sequential retries.
 - Tenant-aware composite foreign keys, indexes, triggers, explicit grants, and RLS.
 
 ### Internal API
@@ -118,7 +118,7 @@ This least-privilege boundary is intentional. However, an owner who is also a so
 
 ### 3. Clinical review, clarification, and retry — missing domain model
 
-The current session state machine includes review states, but there is no persisted review decision linked to a specific immutable response attempt, no clinician-authored clarification entity, and no enforced sequential patient retry workflow.
+The current session state machine includes review states, but there is no persisted review decision linked to a specific immutable response attempt, no clinician-authored clarification entity, and no enforced sequential patient retry workflow. The current attempt number is positive and unique but remains caller-supplied.
 
 A transition from `review_in_progress` to `completed` does not currently require durable evidence that every required response was reviewed or that necessary clarification was approved. This is a domain-integrity gap, not a frontend task.
 
