@@ -54,14 +54,28 @@ There is no AI functionality in Phase B. The application does not diagnose, pres
 ## Authentication foundation
 Sign-up creates an Auth identity; a database trigger provisions a minimal profile. Registration does not grant an organization membership or professional role. Organization creation and owner transfer are controlled PostgreSQL functions.
 
-## Architecture documents
-- [Overview](docs/architecture/overview.md)
+## Current interface scope
+
+The current interface includes the public entry page, sign-in/sign-up, a clinician access overview, and a responsive clinician patient directory. Authorized clinicians can create a patient record; the database atomically creates the creator's active assignment. The directory reads only rows permitted by RLS and currently displays at most the 100 most recently added assigned records.
+
+Patient creation does not invite a patient or grant patient-portal access. Patient authentication, invitations, patient self-service, care-plan authoring, instruction approval, session preparation, clinician response review, clarification, retry, and organization administration are not yet exposed as complete UI workflows. The internal response APIs remain clinician-only.
+
+## Architecture and product documents
+- [Architecture overview](docs/architecture/overview.md)
 - [Database foundations](docs/architecture/database-foundations.md)
 - [Security model](docs/architecture/security-model.md)
 - [Domain model](docs/architecture/domain-model.md)
 - [Domain workflows](docs/architecture/domain-workflows.md)
 - [Data integrity](docs/architecture/data-integrity.md)
 - [Domain authorization](docs/architecture/domain-authorization.md)
+- [Product architecture and route map](docs/product/product-architecture.md)
+- [Design system](docs/product/design-system.md)
+- [Internationalization architecture](docs/product/internationalization-architecture.md)
+- [Phase C domain extension design](docs/product/phase-c-domain-extension-design.md)
+- [UI/API/domain traceability](docs/architecture/ui-api-domain-traceability.md)
 
 ## Verification status
-The remote foundation commit is not yet locally executed against Supabase or built with npm. The committed CI workflow is intended to perform those checks. A generated npm lockfile and generated database types must be produced and committed from a provisioned development environment before reproducible installation can be claimed. Do not use real patient data.
+
+GitHub Actions has validated the foundation on commit `5d830ead2b630a12f41f9c62b2c78802890681c8` (run `43234578773`) and the patient-directory implementation/documentation on commit `0cdfe5e4b4ef5c918dba9a38355e3226bf4fb2f4` (run `43235563829`). The latter completed clean database reset/migrations, database lint, 105 pgTAP assertions, 26 Vitest tests, ESLint, TypeScript, dependency audit, and production build successfully. Later commits require their own CI result before they can be considered verified.
+
+**Reproducibility limitation:** CI currently uses `npm install`, generates `package-lock.json` and database types, and runs `prettier --write .` before checking formatting. Those generated/normalized files are packaged as a temporary workflow artifact, not committed to the branch. Consequently, deterministic `npm ci` installation and formatting of the committed tree are not yet established. Do not use real patient data.
