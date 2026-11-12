@@ -14,8 +14,11 @@
 | Clinician shell | Sign out | POSTs to sign-out route and calls Supabase sign-out | Implemented |
 | Clinician overview | View active memberships | Server Component reads current user's active organization memberships under RLS | Read-only |
 | Clinician overview | View clinical access explanation | Static explanation of the current least-privilege model | Informational only |
+| Clinician navigation | Open patient directory | Responsive desktop/mobile navigation to /clinician/patients | Functional navigation |
+| Patient directory | View assigned patients | Server Component queries clinician memberships, organization names, and patient rows; RLS filters patient records to active assignments | Persisted, read-only; capped at 100 |
+| Patient directory | Create patient | Client form POSTs to /api/patients; create_patient RPC creates the patient and creator assignment atomically; page refreshes from persisted data | Persisted |
 
-The current interface does not yet expose patient creation, care-plan authoring, instruction approval, session preparation, response review, patient access, or organization administration. Do not describe those journeys as implemented merely because API/database primitives exist.
+The interface still does not expose patient profiles/history, care-plan authoring, instruction approval, session preparation, response review, patient access, or organization administration. Patient creation is not patient invitation: no patient identity or portal access is granted by this operation. Do not describe unimplemented journeys as complete merely because API/database primitives exist.
 
 ## 2. Existing API operation trace
 
@@ -92,8 +95,7 @@ These must use patient-specific RPCs and RLS. Existing clinician response endpoi
 
 - A PostgreSQL unique violation (23505) is not always a duplicate response submission. The public mapping is now generic RESOURCE_CONFLICT rather than the incorrect DUPLICATE_SUBMISSION label.
 - Malformed JSON previously fell through to INTERNAL_ERROR. A shared readJsonBody helper now maps malformed request JSON to HTTP 400 INVALID_JSON and is used by JSON-writing routes.
-- The patient list currently has no cursor/limit contract. Add bounded pagination before exposing large organizations.
-- The patient list returns all rows permitted by the Supabase API row cap; the UI must not imply that this is a complete list without pagination metadata.
+- The clinician directory currently queries at most 100 assigned patient rows and has no cursor pagination or total-count metadata. The UI explicitly labels this as a 100-record window; it is not a complete directory for larger organizations.
 - No rate limiting or request-correlation/audit instrumentation exists yet.
 - API contracts are not yet published as OpenAPI or generated client types.
 
