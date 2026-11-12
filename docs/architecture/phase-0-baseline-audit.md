@@ -2,8 +2,8 @@
 
 **Audit date:** 2026-11-12  
 **Working branch:** `phase-c/product-execution`  
-**Audited source commit:** `47bef5d713ff8706e86a0d7286188cd6a8e482e8`  
-**Validated source branch:** `phase-b/world-class-product`  
+**Audited source commit:** `ff6b2974435fb3bf0288fa00ca9630c410a9262c`  
+**Validated source branch:** `phase-c/product-execution`  
 **Base domain commit:** `phase-b/business-domain` at `8f9f9a579b04977b640102b4557095efc71a2cc7`
 
 ## Executive assessment
@@ -16,11 +16,11 @@ The latest validated commit is suitable as a controlled engineering baseline. It
 
 ## Audit scope
 
-Inspected the repository tree (85 tracked files at the audited commit), README, product and architecture documentation, all four SQL migrations, database functions/triggers/constraints/indexes/grants/RLS policies, all API route handlers, application services, repositories, authentication helpers, pages, forms, design-system components, global styles, tests, package configuration, and GitHub Actions workflows.
+Inspected the repository tree, README, product and architecture documentation, all five SQL migrations, database functions/triggers/constraints/indexes/grants/RLS policies, all API route handlers, application services, repositories, authentication helpers, pages, forms, design-system components, global styles, tests, package configuration, and GitHub Actions workflows.
 
 ### Repository inventory
 
-- 4 SQL migrations: identity/tenant foundation, owner guard, clinical domain foundation, and domain hardening.
+- 5 SQL migrations: identity/tenant foundation, owner guard, clinical domain foundation, domain hardening, and instruction-question coverage hardening.
 - 12 principal public tables: profiles, organizations, organization memberships, patients, patient-clinician assignments, care plans, instruction items, instruction versions, Teach-Back sessions, session instruction snapshots, questions, and responses.
 - 16 API route files covering internal clinician operations.
 - 4 feature areas: patients, instructions, sessions, and responses.
@@ -72,25 +72,30 @@ The clinician page currently shows organization membership/access state only. It
 
 ## Phase 0 defects corrected and verified
 
-The validated product branch includes these corrections:
+The validated Phase C branch includes these corrections:
 
-1. Malformed pgTAP dollar quoting was repaired. The Phase B test plan executes all 59 assertions.
+1. Malformed pgTAP dollar quoting was repaired. The Phase B test plan now executes all 68 assertions.
 2. The API wrapper accepts the standard `Response` contract, which is compatible with both standard `Response` and `NextResponse` route handlers.
 3. Draft question updates are restricted to the `question_text` and `position` columns; RLS and the immutable-question trigger remain in force.
 4. A session in `ready` cannot transition back to `draft`; the state machine and database guard enforce session finality.
 5. Supabase verification and generated-artifact handling were consolidated into one CI workflow to avoid competing local database stacks.
+6. PostgreSQL unique violations (23505) map to the generic RESOURCE_CONFLICT API code rather than incorrectly labeling every unique constraint as a duplicate submission.
+7. Malformed JSON request bodies return HTTP 400 INVALID_JSON through a shared request-body parser instead of an internal-server error.
+8. Migration 20261112140115_phase_c_instruction_question_coverage.sql requires at least one approved question for every instruction snapshot before a session can become ready.
+9. pgTAP fixtures capture inserted session/item/question identifiers with INSERT ... RETURNING instead of ordering rows by created_at within a transaction.
+10. CI now guards downstream checks on their prerequisites and continues independent Node checks after database-test failures.
 
 ## Verification evidence
 
-GitHub Actions: [CI run 43220452882](https://github.com/HakimDev-tech/teach-back-ai/actions/runs/43220452882)  
-Validated commit: `47bef5d713ff8706e86a0d7286188cd6a8e482e8`
+GitHub Actions: [CI run 43233106084](https://github.com/HakimDev-tech/teach-back-ai/actions/runs/43233106084)  
+Validated commit: `ff6b2974435fb3bf0288fa00ca9630c410a9262c`
 
 | Check | Observed result |
 |---|---:|
 | Clean local database reset and migrations | Passed |
 | Supabase database lint | Passed — no schema errors |
-| pgTAP | Passed — 96/96 assertions across 3 files |
-| Vitest | Passed — 3 files, 20 tests |
+| pgTAP | Passed — 105/105 assertions across 3 files |
+| Vitest | Passed — 3 files, 21 tests |
 | ESLint | Passed |
 | TypeScript strict check | Passed |
 | npm audit | Passed — 0 vulnerabilities reported |
@@ -118,7 +123,7 @@ This least-privilege boundary is intentional. However, an owner who is also a so
 
 ### 3. Clinical review, clarification, and retry — missing domain model
 
-The current session state machine includes review states, but there is no persisted review decision linked to a specific immutable response attempt, no clinician-authored clarification entity, and no enforced sequential patient retry workflow. The current attempt number is positive and unique but remains caller-supplied.
+The current session state machine includes review states, but there is no persisted review decision linked to a specific immutable response attempt, no clinician-authored clarification entity, and no enforced sequential patient retry workflow. The current attempt number is positive and unique but remains caller-supplied. The earlier publication-coverage gap has been closed: each instruction snapshot now requires at least one approved question.
 
 A transition from `review_in_progress` to `completed` does not currently require durable evidence that every required response was reviewed or that necessary clarification was approved. This is a domain-integrity gap, not a frontend task.
 
@@ -158,8 +163,8 @@ No HIPAA, GDPR, or other compliance claim is supported by the current evidence.
 
 The green CI validates the existing foundation; it does not validate the full product.
 
-- Vitest currently has 20 tests focused on API error mapping, environment validation, and patient repository behavior.
-- pgTAP has 96 assertions covering core schema, grants, RLS, selected tenant boundaries, state transitions, immutability, and idempotency.
+- Vitest currently has 21 tests focused on API error mapping, environment validation, and patient repository behavior.
+- pgTAP has 105 assertions covering core schema, grants, RLS, selected tenant boundaries, state transitions, per-instruction question coverage, immutability, and idempotency.
 - There are no Playwright end-to-end tests.
 - There are no complete browser tests for authentication/onboarding, clinician journeys, patient journeys, or organization administration.
 - API handler authorization and full multi-tenant adversarial scenarios are not exhaustively covered.
@@ -184,8 +189,10 @@ The next phase must not add a patient-facing UI on top of the current clinician-
 
 ## Git state
 
-- Working branch created: `phase-c/product-execution`.
+- Working branch: `phase-c/product-execution`.
 - Branch base: `phase-b/world-class-product` at `47bef5d713ff8706e86a0d7286188cd6a8e482e8`.
+- Validated branch head: `ff6b2974435fb3bf0288fa00ca9630c410a9262c`.
+- Comparison with main: 81 commits ahead, 0 behind.
 - `main` was not modified.
 - No merge or pull request was created.
 - The separate stabilization experiment branch is not merged into this working branch.
