@@ -58,7 +58,7 @@ export async function apiRoute(
       PGRST116: { status: 404, code: "RESOURCE_NOT_FOUND", message: "The requested resource was not found." },
       P0002: { status: 404, code: "RESOURCE_NOT_FOUND", message: "The requested resource was not found." },
       "40001": { status: 409, code: "SESSION_VERSION_CONFLICT", message: "The resource changed. Reload and retry." },
-      "23505": { status: 409, code: "DUPLICATE_SUBMISSION", message: "A conflicting record already exists." },
+      "23505": { status: 409, code: "RESOURCE_CONFLICT", message: "A conflicting record already exists." },
       "23503": { status: 422, code: "VALIDATION_ERROR", message: "A referenced resource is invalid." },
       "23514": { status: 422, code: "INVALID_DOMAIN_TRANSITION", message: "The requested domain operation is not valid." },
       "22023": { status: 422, code: "VALIDATION_ERROR", message: "The supplied value is invalid." },
