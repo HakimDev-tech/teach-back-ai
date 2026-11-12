@@ -1,5 +1,5 @@
 begin;
-select plan(50);
+select plan(59);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
@@ -15,6 +15,11 @@ select ok((select relrowsecurity from pg_class where oid='public.patient_clinici
 select ok((select relrowsecurity from pg_class where oid='public.responses'::regclass), 'responses RLS enabled');
 select ok(not has_table_privilege('anon','public.patients','select'), 'anonymous cannot read patient records');
 select ok(not has_function_privilege('anon','public.create_patient(uuid,text,text)','execute'), 'anonymous cannot create patient records');
+select ok(
+  has_column_privilege('authenticated','public.questions','question_text','UPDATE')
+  and has_column_privilege('authenticated','public.questions','position','UPDATE'),
+  'authenticated can update only the intended draft question fields'
+);
 
 -- Synthetic Auth identities and two isolated tenants.
 insert into auth.users (id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data)
@@ -158,7 +163,9 @@ select lives_ok($$insert into public.questions
 select set_config('test.question_id',(
  select id::text from public.questions where session_id=current_setting('test.session_id')::uuid
 ),true);
-select lives_ok($$select public.approve_question(current_setting('test.question_id')::uuid)$$,
+select lives_ok($update public.questions set question_text='Please explain the schedule in your own words?' where id=current_setting('test.question_id')::uuid$,
+ 'draft question can be edited before approval');
+select lives_ok($select public.approve_question(current_setting('test.question_id')::uuid)$$,
  'clinician approves question explicitly');
 reset role;
 select throws_ok(
@@ -211,6 +218,40 @@ select lives_ok($$select public.transition_session(current_setting('test.session
 select throws_ok(
  $$select public.transition_session(current_setting('test.session_id')::uuid,6,'in_progress')$$,
  '23514',null,'terminal session cannot be reopened');
+
+-- A prepared session must never return to draft, because its approved snapshots are immutable.
+select lives_ok($insert into public.teachback_sessions
+ (organization_id,patient_id,care_plan_id,created_by)
+ values ('40000000-0000-4000-8000-000000000001',current_setting('test.patient_id')::uuid,
+ current_setting('test.care_plan_id')::uuid,'30000000-0000-4000-8000-000000000003')$,
+ 'clinician creates a second session for transition-boundary coverage');
+select set_config('test.reversion_session_id',(
+ select id::text from public.teachback_sessions
+ where patient_id=current_setting('test.patient_id')::uuid and status='draft'
+ order by created_at desc limit 1
+),true);
+select lives_ok($insert into public.session_instructions
+ (organization_id,session_id,instruction_item_id,instruction_version_id)
+ values ('40000000-0000-4000-8000-000000000001',current_setting('test.reversion_session_id')::uuid,
+ current_setting('test.instruction_item_id')::uuid,current_setting('test.instruction_version_id')::uuid)$,
+ 'second session receives an approved instruction snapshot');
+select lives_ok($insert into public.questions
+ (organization_id,session_id,instruction_item_id,instruction_version_id,question_text,position,created_by)
+ values ('40000000-0000-4000-8000-000000000001',current_setting('test.reversion_session_id')::uuid,
+ current_setting('test.instruction_item_id')::uuid,current_setting('test.instruction_version_id')::uuid,
+ 'How will you follow the approved schedule?',1,'30000000-0000-4000-8000-000000000003')$,
+ 'second session receives a draft question');
+select set_config('test.reversion_question_id',(
+ select id::text from public.questions where session_id=current_setting('test.reversion_session_id')::uuid
+),true);
+select lives_ok($select public.approve_question(current_setting('test.reversion_question_id')::uuid)$,
+ 'second session question is approved');
+select lives_ok($select public.transition_session(current_setting('test.reversion_session_id')::uuid,1,'ready')$,
+ 'second session becomes ready');
+select throws_ok($select public.transition_session(current_setting('test.reversion_session_id')::uuid,2,'draft')$,
+ '23514',null,'ready session cannot return to draft');
+select is((select status from public.teachback_sessions where id=current_setting('test.reversion_session_id')::uuid),
+ 'ready','rejected backward transition leaves session ready');
 
 select * from finish();
 rollback;
