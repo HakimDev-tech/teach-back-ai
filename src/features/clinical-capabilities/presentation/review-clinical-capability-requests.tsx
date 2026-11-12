@@ -96,7 +96,7 @@ export function ReviewClinicalCapabilityRequests({
               </div>
 
               {isOwnRequest ? (
-                <p className="mt-4 rounded-lg bg-warning-soft px-3 py-2 text-xs leading-5 text-warning">
+                <p className="mt-4 rounded-lg bg-surface-muted px-3 py-2 text-xs leading-5 text-warning">
                   {t("clinicalAccess.selfApprovalBlocked")}
                 </p>
               ) : (
