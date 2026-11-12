@@ -771,6 +771,7 @@ grant select on public.session_instructions to authenticated;
 grant insert (organization_id,session_id,instruction_item_id,instruction_version_id) on public.session_instructions to authenticated;
 grant select on public.questions to authenticated;
 grant insert (organization_id,session_id,instruction_item_id,instruction_version_id,question_text,position,created_by) on public.questions to authenticated;
+grant update (question_text,position) on public.questions to authenticated;
 grant select on public.responses to authenticated;
 grant update (response_text) on public.responses to authenticated;
 
