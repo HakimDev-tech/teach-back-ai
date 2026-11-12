@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { LocaleSwitcher } from "@/components/layout/locale-switcher";
+import { ClinicianNavigation } from "@/components/layout/clinician-navigation";
 import { Button } from "@/components/ui/button";
 import { getServerI18n } from "@/i18n/server";
 
@@ -43,16 +44,7 @@ export async function ClinicianShell({ children, userEmail }: ClinicianShellProp
           <p className="px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-ink-muted">
             {t("clinician.workspaceNav")}
           </p>
-          <nav aria-label={t("clinician.navigation")} className="mt-3">
-            <Link
-              aria-current="page"
-              className="flex min-h-11 items-center gap-3 rounded-xl bg-brand-soft px-3 text-sm font-semibold text-brand"
-              href="/clinician"
-            >
-              <span aria-hidden="true" className="size-2 rounded-full bg-brand" />
-              {t("clinician.overview")}
-            </Link>
-          </nav>
+          <ClinicianNavigation />
         </div>
         <div className="mt-auto rounded-2xl bg-brand-soft p-4">
           <p className="text-xs font-bold text-brand">{t("clinician.teachBackMethod")}</p>
@@ -82,6 +74,9 @@ export async function ClinicianShell({ children, userEmail }: ClinicianShellProp
             </form>
           </div>
         </header>
+        <div className="border-b border-line bg-surface lg:hidden">
+          <ClinicianNavigation mobile />
+        </div>
         <main
           className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10"
           id="main-content"
