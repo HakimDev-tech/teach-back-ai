@@ -20,3 +20,16 @@ export const POST = (request: Request) =>
 
     return NextResponse.json({ data: { capabilityId } }, { status: 201 });
   });
+
+export const GET = (request: Request) =>
+  apiRoute(async () => {
+    const { supabase } = await requireAuthenticatedClient();
+    const organizationId = z.string().uuid().parse(
+      new URL(request.url).searchParams.get("organizationId"),
+    );
+    const data = await new ClinicalCapabilityService(
+      new ClinicalCapabilityRepository(supabase),
+    ).listForOrganization(organizationId);
+
+    return NextResponse.json({ data });
+  });
