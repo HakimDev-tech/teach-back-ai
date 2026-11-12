@@ -1,6 +1,6 @@
 # Phase C — Domain extension design
 
-**Status:** implementation in progress on phase-c/world-class-product; explicit capability migration and database tests are being hardened  
+**Status:** clinical-capability migration implemented; strict capability enforcement and synthetic authorization fixtures are under CI verification on phase-c/world-class-product  
 **Baseline:** 04ee47470dc94630635ced640a50dbeebcc05396  
 **Scope:** clinical capability, organization/patient invitations, patient identity and access, response review, clinician clarification, retries, and clinical auditability.
 
@@ -18,7 +18,7 @@ All development and hackathon fixtures remain synthetic. No real patient informa
 
 ### Existing constraint
 
-organization_memberships permits exactly one role per user and organization: owner, admin, or clinician. Clinical access currently requires the clinician role plus an active patient assignment. That role is not professional verification: an owner/admin can assign it without a credential review. The role-only shortcut is being removed.
+organization_memberships permits exactly one role per user and organization: owner, admin, or clinician. Phase B initially treated the clinician membership role plus an active patient assignment as sufficient. That role is not professional verification: an owner/admin can assign it without credential review. Phase C removes that shortcut; no membership role alone grants clinical access.
 
 This is a correct least-privilege boundary, but it cannot represent an owner who is also a clinician.
 
@@ -34,7 +34,7 @@ Conceptual fields:
 | status | pending, active, suspended, revoked |
 | professional_type | Minimal professional category required by the workflow |
 | verification_status | pending, verified, rejected, expired |
-| verification_method | Manual or documented external verification method |
+| verification_method | Currently only manual_review organization attestation; external registry verification is not implemented |
 | verified_by, verified_at | Verification provenance |
 | granted_by, granted_at | Grant provenance |
 | expires_at, revoked_at | Time-bounded access lifecycle |
@@ -46,11 +46,11 @@ Do not collect or retain a full professional license identifier unless a documen
 A user may read or modify clinical records only when all of the following hold:
 
 1. The user has an active organization membership.
-2. The user has an active, verified clinical-capability grant. No membership role, including clinician, is an exception.
+2. The user has an active, unexpired clinical-capability grant with verified provenance. No membership role, including clinician, is an exception.
 3. The user has an active assignment to the target patient.
-4. The target patient and organization are active and match the record being accessed.
+4. The target patient and organization match the record being accessed.
 
-Owners/admins retain assignment and organization-management permissions but gain no clinical access from those roles alone. Every clinician, including a member whose organization role is clinician, must receive an explicit capability approval. Existing clinician memberships are not silently backfilled; they must be reviewed before clinical access is restored.
+Owners/admins retain assignment and organization-management permissions but gain no clinical access from those roles alone. Every clinician, including a member whose organization role is clinician, must receive an explicit capability approval. Existing clinician memberships are not silently backfilled; each must receive independent capability approval before clinical access is granted.
 
 The current implementation supports only the `manual_review` verification method. This is an organization-level attestation recorded by an independent owner/admin; it is **not** an external professional-registry check, proof of licensure, or regulatory credential certification. The UI and documentation must not imply otherwise. External credential verification remains deferred until a real provider or documented manual-review operating procedure exists.
 
@@ -284,7 +284,7 @@ AI is a later phase and consumes the approved domain model; it does not own it.
 
 Do not rewrite or delete the Phase A/B migrations. The first additive migration is named phase_c_instruction_question_coverage and closes the publication invariant before patient access is enabled. Implement subsequent additive migrations in this order:
 
-1. Clinical capability records and authorization-helper extension, with explicit compatibility/backfill behavior.
+1. Clinical capability records and authorization-helper extension. There is no role-based compatibility bypass or automatic backfill; existing clinician members require explicit independent approval.
 2. Organization invitations and patient invitation codes, plus patient access grants.
 3. Patient-specific RLS policies, safe projections, and patient RPCs.
 4. Response reviews, clarifications, audit events, and immutable-history guards.
