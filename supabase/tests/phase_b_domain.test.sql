@@ -1,5 +1,5 @@
 begin;
-select plan(90);
+select plan(91);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
@@ -58,6 +58,18 @@ select set_config('test.clinician_b_capability_id',(
   where user_id='30000000-0000-4000-8000-000000000004' and status='active'
 ),true);
 
+-- Clinician A creates a patient and receives an assignment atomically.
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000003',true);
+select lives_ok(
+ $$select public.create_patient('40000000-0000-4000-8000-000000000001','Synthetic Patient A','en')$$,
+ 'clinician creates patient and assignment atomically'
+);
+select set_config('test.patient_id',(
+ select id::text from public.patients where full_name='Synthetic Patient A'
+),true);
+select is((select count(*) from public.patients),1::bigint,'assigned clinician reads own patient');
+
 -- A clinician role alone is not a clinical authorization.
 reset role;
 set local role authenticated;
@@ -84,7 +96,7 @@ select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002'
 select throws_ok(
   $cap$select public.assign_patient_clinician(
     '40000000-0000-4000-8000-000000000001',
-    '40000000-0000-4000-8000-000000000099',
+    current_setting('test.patient_id')::uuid,
     '30000000-0000-4000-8000-000000000004'
   )$cap$,
   '23514',null,'admin cannot assign a clinician without active verified capability');
@@ -107,18 +119,6 @@ select lives_ok($cap$select public.approve_clinical_capability(
   'another active admin can approve the clinician re-verification');
 
 reset role;
-
--- Clinician A creates a patient and receives an assignment atomically.
-set local role authenticated;
-select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000003',true);
-select lives_ok(
- $$select public.create_patient('40000000-0000-4000-8000-000000000001','Synthetic Patient A','en')$$,
- 'clinician creates patient and assignment atomically'
-);
-select set_config('test.patient_id',(
- select id::text from public.patients where full_name='Synthetic Patient A'
-),true);
-select is((select count(*) from public.patients),1::bigint,'assigned clinician reads own patient');
 
 -- An unassigned clinician, tenant owner, and tenant admin do not gain clinical-data access.
 reset role;
