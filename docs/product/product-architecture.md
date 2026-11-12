@@ -20,12 +20,12 @@ Do not equate organization administration with clinical access.
 |---|---:|---:|---:|---:|
 | Manage organization profile | Yes | Policy-based | No | No |
 | Invite/manage organization members | Yes | Policy-based | No | No |
-| View assigned clinical records | Only with explicit clinical capability and assignment | Only with explicit clinical capability and assignment | With active assignment | Own authorized patient record |
+| View assigned clinical records | With active verified clinical capability and assignment | With active verified clinical capability and assignment | With active verified clinical capability and assignment | Own authorized patient record |
 | Author/approve instructions | Only with clinical capability and assignment | Only with clinical capability and assignment | With active assignment | No |
 | Review patient responses | Only with clinical capability and assignment | Only with clinical capability and assignment | With active assignment | Own submitted history only |
 | Submit Teach-Back responses | No | No | No | Own active session |
 
-The current single-role membership model does not support a solo practitioner who is both owner and clinician. Resolve this before implementing organization onboarding. A separate, explicitly granted clinical capability is preferable to implicitly granting clinical access to owners or administrators.
+The independent clinical-capability record now allows an owner or admin to also perform clinical work without inheriting clinical access from governance privileges. Every clinician membership also requires an explicit capability grant; role assignment alone is insufficient. Self-approval is forbidden. A solo practitioner without a second authorized reviewer remains unsupported until an independent platform-level verification process is implemented.
 
 ## Proposed route map
 
@@ -78,7 +78,7 @@ The route map above remains locale-neutral. English, French, and Arabic are sele
 1. User creates an account and verifies email.
 2. User creates or accepts an organization invitation.
 3. Organization membership is activated only through an authorized process.
-4. Clinical capability is granted explicitly and, where required, manually verified.
+4. Clinical capability is granted explicitly through an independent organization-level manual attestation. This is not external licensure verification.
 5. Clinician sees only patients with an active assignment.
 
 ### Patient creation and access
