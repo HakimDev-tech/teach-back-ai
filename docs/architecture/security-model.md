@@ -4,7 +4,9 @@
 Supabase Auth manages credentials. The app uses cookie-based `@supabase/ssr` clients and the Next.js 16 `proxy.ts` session-refresh entry point. Proxy refresh uses `getClaims()`; protected server routes use `getUser()` to verify identity. Do not authorize from `getSession()` alone.
 
 ## Roles and tenant isolation
-Professional roles exist only in organization memberships: owner, admin, clinician. Active membership is required. Patient access will be modeled separately in a later phase. Client-supplied organization IDs never grant access by themselves.
+Organization governance roles exist in memberships: owner, admin, clinician. Active membership is required, but no membership role by itself grants clinical-record access. Phase C adds an independent, active, unexpired clinical-capability grant with approval provenance; clinical records additionally require an active patient assignment. Existing clinician memberships are not silently backfilled as verified. Patient access remains a separate authorization boundary. Client-supplied organization IDs never grant access by themselves.
+
+The current `manual_review` capability approval is an organization-level attestation, not an external professional-registry check or licensure certification.
 
 ## RLS and GRANT
 RLS is enabled on all three public foundation tables. Table privileges are separately revoked and granted. Profile UPDATE is column-limited to full_name/avatar_url. Organizations are readable by active members and updateable by active owners/admins. Membership reads are tenant-scoped; direct membership insertion only permits adding clinician roles by an active owner/admin. Owner creation and transfer use dedicated RPCs.
