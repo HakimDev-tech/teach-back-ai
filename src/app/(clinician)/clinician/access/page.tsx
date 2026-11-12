@@ -77,9 +77,15 @@ export default async function ClinicianAccessPage() {
   }
 
   const now = Date.now();
-  const latestCapabilityByOrganization = new Map(
-    (capabilitiesResult.data ?? []).map((capability) => [capability.organization_id, capability]),
-  );
+  const latestCapabilityByOrganization = new Map<
+    string,
+    NonNullable<typeof capabilitiesResult.data>[number]
+  >();
+  for (const capability of capabilitiesResult.data ?? []) {
+    if (!latestCapabilityByOrganization.has(capability.organization_id)) {
+      latestCapabilityByOrganization.set(capability.organization_id, capability);
+    }
+  }
   const organizationStatuses = (organizations ?? []).map((organization) => {
     const capability = latestCapabilityByOrganization.get(organization.id);
     let status: CapabilityStatus = "not_requested";
@@ -146,11 +152,16 @@ export default async function ClinicianAccessPage() {
                 <div>
                   <p className="text-sm font-semibold text-ink">{organization.name}</p>
                   <p className="mt-1 text-xs text-ink-muted">
-                    {organization.capability
-                      ? t("clinicalAccess.requestedOn", {
-                          date: formatDate(organization.capability.created_at, locale),
-                        })
-                      : t("clinicalAccess.noRequestYet")}
+                    {organization.capability ? (
+                      <>
+                        {t("clinicalAccess.requestedOn")}{" "}
+                        <time dateTime={organization.capability.created_at}>
+                          {formatDate(organization.capability.created_at, locale)}
+                        </time>
+                      </>
+                    ) : (
+                      t("clinicalAccess.noRequestYet")
+                    )}
                   </p>
                 </div>
                 <Badge variant={statusVariants[organization.status]}>
