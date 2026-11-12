@@ -38,6 +38,7 @@ begin
   from public.organization_clinical_capabilities c
   left join public.profiles p on p.id = c.user_id
   where c.organization_id = target_org
+    and c.status = 'pending'
   order by c.created_at desc, c.id desc
   limit 100;
 end;
