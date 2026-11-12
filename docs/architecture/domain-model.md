@@ -5,7 +5,8 @@ Phase B adds the clinical business-domain persistence layer and authenticated HT
 
 ## Entities and ownership
 - `patients`: one organization-scoped patient record. No cross-organization identity linking is inferred.
-- `patient_clinician_assignments`: time-relevant access relationship between one patient and one clinician membership. Revocation is retained as history.
+- `organization_clinical_capabilities`: explicit, time-bounded organization-level clinical authorization for a member. A `clinician` membership role alone is not authorization; approval provenance is retained.
+- `patient_clinician_assignments`: time-relevant access relationship between one patient and one member with active clinical capability. Revocation is retained as history.
 - `care_plans`: an organizationally scoped grouping for one patient.
 - `instruction_items`: stable logical instruction identity within a care plan.
 - `instruction_versions`: immutable approved snapshots, sequential per item. A new edit is a new draft version.
@@ -15,7 +16,7 @@ Phase B adds the clinical business-domain persistence layer and authenticated HT
 - `responses`: append-preserving attempts, each with a stable idempotency key. Draft text is mutable; submitted content is immutable.
 
 ## Aggregate boundaries
-Patient and assignment writes are coordinated by `create_patient`, which creates the patient and creator assignment atomically. Assignment management is exposed through controlled RPCs. Care plans and instruction items are patient-scoped. Instruction version creation serializes on the logical instruction row. A session owns its instruction references, questions, and responses; those child records cannot be changed after the session leaves draft.
+Patient and assignment writes are coordinated by `create_patient`, which requires active verified clinical capability and creates the patient and creator assignment atomically. Assignment management is exposed through controlled RPCs. Care plans and instruction items are patient-scoped. Instruction version creation serializes on the logical instruction row. A session owns its instruction references, questions, and responses; those child records cannot be changed after the session leaves draft.
 
 ## Deliberate decisions
 Questions are session-specific rather than global instruction templates. The same approved instruction version can be referenced by multiple sessions, while each session retains its own approved questions and ordering. A session snapshot references exact version IDs, so a later instruction version does not rewrite history.
