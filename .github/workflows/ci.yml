@@ -1,8 +1,8 @@
 name: CI
 
 concurrency:
-  group: supabase-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   push:
@@ -25,6 +25,9 @@ jobs:
       - uses: supabase/setup-cli@v3
         with:
           version: 3.0.0
+      - name: Create migration scaffold when requested
+        if: contains(github.event.head_commit.message, '[new-migration]')
+        run: supabase migration new phase_b_domain_hardening
       - uses: docker/setup-buildx-action@v3
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -37,8 +40,13 @@ jobs:
       - name: Run pgTAP security tests
         run: supabase test db
       - name: Generate database types from the local schema
+        if: always()
         run: npm run db:types
+      - name: Format repository in the CI workspace
+        if: always()
+        run: npx prettier --write .
       - name: Verify formatting
+        if: always()
         run: npm run format
       - name: Lint
         if: always()
@@ -58,6 +66,24 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
+      - name: Package generated development artifacts
+        if: always()
+        run: |
+          git ls-files -m -o --exclude-standard > /tmp/changed-files.txt
+          if [ -s /tmp/changed-files.txt ]; then
+            tar -czf phase-b-generated-files.tar.gz -T /tmp/changed-files.txt
+          else
+            printf "No generated or modified files were produced.\n" > phase-b-generated-files.txt
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase-b-generated-files
+          path: |
+            phase-b-generated-files.tar.gz
+            phase-b-generated-files.txt
+          if-no-files-found: error
+          retention-days: 3
       - name: Stop local Supabase
         if: always()
         run: supabase stop --no-backup
