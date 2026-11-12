@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { ClinicalCapabilityService } from "@/features/clinical-capabilities/application/clinical-capability-service";
+import { ClinicalCapabilityRepository } from "@/features/clinical-capabilities/infrastructure/clinical-capability-repository";
 import { RequestClinicalCapabilityForm } from "@/features/clinical-capabilities/presentation/request-clinical-capability-form";
 import { ReviewClinicalCapabilityRequests } from "@/features/clinical-capabilities/presentation/review-clinical-capability-requests";
 import { formatDate } from "@/i18n/format";
@@ -21,20 +23,19 @@ export default async function ClinicianAccessPage() {
 
   if (authError || !user) redirect("/sign-in");
 
-  const [membershipsResult, capabilitiesResult] = await Promise.all([
+  const capabilityService = new ClinicalCapabilityService(
+    new ClinicalCapabilityRepository(supabase),
+  );
+  const [membershipsResult, capabilities] = await Promise.all([
     supabase
       .from("organization_memberships")
       .select("organization_id,role")
       .eq("user_id", user.id)
       .eq("status", "active"),
-    supabase
-      .from("organization_clinical_capabilities")
-      .select("id,organization_id,professional_type,status,verification_status,expires_at,created_at")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false }),
+    capabilityService.listMine().catch(() => null),
   ]);
 
-  if (membershipsResult.error || capabilitiesResult.error) {
+  if (membershipsResult.error || capabilities === null) {
     return (
       <Card>
         <Badge variant="warning">{t("clinicalAccess.unavailable")}</Badge>
@@ -77,23 +78,22 @@ export default async function ClinicianAccessPage() {
     );
   }
 
-  const now = Date.now();
   const latestCapabilityByOrganization = new Map<
     string,
-    NonNullable<typeof capabilitiesResult.data>[number]
+    (typeof capabilities)[number]
   >();
-  for (const capability of capabilitiesResult.data ?? []) {
+  for (const capability of capabilities) {
     if (!latestCapabilityByOrganization.has(capability.organization_id)) {
       latestCapabilityByOrganization.set(capability.organization_id, capability);
     }
   }
+
   const organizationStatuses = (organizations ?? []).map((organization) => {
     const capability = latestCapabilityByOrganization.get(organization.id);
     let status: CapabilityStatus = "not_requested";
 
     if (capability?.status === "active") {
-      status =
-        capability.expires_at && Date.parse(capability.expires_at) <= now ? "expired" : "active";
+      status = capability.is_expired ? "expired" : "active";
     } else if (
       capability?.status === "pending" ||
       capability?.status === "suspended" ||
@@ -118,25 +118,26 @@ export default async function ClinicianAccessPage() {
   );
   const reviewQueueResults = await Promise.all(
     adminMemberships.map(async (membership) => {
-      const { data, error } = await supabase.rpc("list_clinical_capability_requests", {
-        target_org: membership.organization_id,
-      });
-      if (error) return { error: true, requests: [] };
+      try {
+        const requests = await capabilityService.listForOrganization(membership.organization_id);
+        const organizationName =
+          organizations?.find((organization) => organization.id === membership.organization_id)?.name ??
+          t("clinicalAccess.organization");
 
-      const organizationName =
-        organizations?.find((organization) => organization.id === membership.organization_id)?.name ??
-        t("clinicalAccess.organization");
-      return {
-        error: false,
-        requests: (data ?? []).map((request) => ({
-          capabilityId: request.capability_id,
-          userId: request.user_id,
-          displayName: request.display_name,
-          professionalType: request.professional_type,
-          organizationName,
-          requestedAt: formatDate(request.requested_at, locale),
-        })),
-      };
+        return {
+          error: false,
+          requests: requests.map((request) => ({
+            capabilityId: request.capability_id,
+            userId: request.user_id,
+            displayName: request.display_name,
+            professionalType: request.professional_type,
+            organizationName,
+            requestedAt: formatDate(request.requested_at, locale),
+          })),
+        };
+      } catch {
+        return { error: true, requests: [] };
+      }
     }),
   );
   const reviewQueueHasError = reviewQueueResults.some((result) => result.error);
@@ -177,7 +178,9 @@ export default async function ClinicianAccessPage() {
             {t("clinicalAccess.reviewDescription")}
           </p>
           {reviewQueueHasError ? (
-            <p className="text-sm text-danger" role="alert">{t("clinicalAccess.reviewLoadFailed")}</p>
+            <p className="text-sm text-danger" role="alert">
+              {t("clinicalAccess.reviewLoadFailed")}
+            </p>
           ) : reviewRequests.length > 0 ? (
             <ReviewClinicalCapabilityRequests currentUserId={user.id} requests={reviewRequests} />
           ) : (
