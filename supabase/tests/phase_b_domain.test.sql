@@ -1,5 +1,5 @@
 begin;
-select plan(68);
+select plan(84);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
@@ -303,6 +303,115 @@ select throws_ok($$select public.transition_session(current_setting('test.revers
  '23514',null,'ready session cannot return to draft');
 select is((select status from public.teachback_sessions where id=current_setting('test.reversion_session_id')::uuid),
  'ready','rejected backward transition leaves session ready');
+
+-- Clinical capability is independent from organization administration and cannot be self-approved.
+reset role;
+select ok(to_regclass('public.organization_clinical_capabilities') is not null,
+  'organization clinical capability table exists');
+select ok((select relrowsecurity from pg_class
+  where oid='public.organization_clinical_capabilities'::regclass),
+  'clinical capability RLS is enabled');
+select ok(not has_table_privilege('anon','public.organization_clinical_capabilities','select'),
+  'anonymous cannot inspect clinical capability records');
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
+select lives_ok($select set_config('test.owner_capability_id',
+  public.request_clinical_capability(
+    '40000000-0000-4000-8000-000000000001','physician'
+  )::text,true)$,
+  'owner can request a separate clinical capability');
+
+select throws_ok(
+  $select public.approve_clinical_capability(
+    current_setting('test.owner_capability_id')::uuid,'manual_review'
+  )$,
+  '42501',null,'a member cannot approve their own clinical capability');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select lives_ok($select public.approve_clinical_capability(
+  current_setting('test.owner_capability_id')::uuid,'manual_review'
+)$,
+  'another active organization admin can verify and grant clinical capability');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
+select is((select count(*) from public.patients
+  where id=current_setting('test.patient_id')::uuid),0::bigint,
+  'verified capability without patient assignment does not grant clinical record access');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select lives_ok($select public.assign_patient_clinician(
+  '40000000-0000-4000-8000-000000000001',
+  current_setting('test.patient_id')::uuid,
+  '30000000-0000-4000-8000-000000000001'
+)$,
+  'admin can assign a verified owner-clinician to a patient');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
+select is((select count(*) from public.patients
+  where id=current_setting('test.patient_id')::uuid),1::bigint,
+  'verified owner-clinician can read only after an active patient assignment');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select lives_ok($select public.suspend_clinical_capability(
+  current_setting('test.owner_capability_id')::uuid,'verification paused'
+)$,
+  'organization admin can suspend a clinical capability');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
+select is((select count(*) from public.patients
+  where id=current_setting('test.patient_id')::uuid),0::bigint,
+  'suspending clinical capability immediately removes clinical access');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select lives_ok($select public.revoke_clinical_capability(
+  current_setting('test.owner_capability_id')::uuid,'capability withdrawn'
+)$,
+  'organization admin can revoke a suspended clinical capability');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
+select is((select count(*) from public.patients
+  where id=current_setting('test.patient_id')::uuid),0::bigint,
+  'revoking clinical capability immediately removes clinical access');
+
+select lives_ok($select set_config('test.expired_capability_id',
+  public.request_clinical_capability(
+    '40000000-0000-4000-8000-000000000001','physician'
+  )::text,true)$,
+  'a revoked member may submit a new capability request');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select lives_ok($select public.approve_clinical_capability(
+  current_setting('test.expired_capability_id')::uuid,
+  'manual_review',
+  pg_catalog.now() - interval '1 day'
+)$,
+  'capability grants may carry an explicit expiry');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
+select is((select count(*) from public.patients
+  where id=current_setting('test.patient_id')::uuid),0::bigint,
+  'expired clinical capability does not authorize patient record access');
 
 select * from finish();
 rollback;
