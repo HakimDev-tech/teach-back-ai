@@ -220,7 +220,7 @@ select throws_ok(
  '23514',null,'terminal session cannot be reopened');
 
 -- A prepared session must never return to draft, because its approved snapshots are immutable.
-select lives_ok($insert into public.teachback_sessions
+select lives_ok($$insert into public.teachback_sessions
  (organization_id,patient_id,care_plan_id,created_by)
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.patient_id')::uuid,
  current_setting('test.care_plan_id')::uuid,'30000000-0000-4000-8000-000000000003')$$,
@@ -230,12 +230,12 @@ select set_config('test.reversion_session_id',(
  where patient_id=current_setting('test.patient_id')::uuid and status='draft'
  order by created_at desc limit 1
 ),true);
-select lives_ok($insert into public.session_instructions
+select lives_ok($$insert into public.session_instructions
  (organization_id,session_id,instruction_item_id,instruction_version_id)
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.reversion_session_id')::uuid,
  current_setting('test.instruction_item_id')::uuid,current_setting('test.instruction_version_id')::uuid)$$,
  'second session receives an approved instruction snapshot');
-select lives_ok($insert into public.questions
+select lives_ok($$insert into public.questions
  (organization_id,session_id,instruction_item_id,instruction_version_id,question_text,position,created_by)
  values ('40000000-0000-4000-8000-000000000001',current_setting('test.reversion_session_id')::uuid,
  current_setting('test.instruction_item_id')::uuid,current_setting('test.instruction_version_id')::uuid,
