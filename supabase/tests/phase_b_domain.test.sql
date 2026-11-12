@@ -39,6 +39,25 @@ insert into public.organization_memberships (organization_id,user_id,role,status
  ('40000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000004','clinician','active'),
  ('40000000-0000-4000-8000-000000000002','30000000-0000-4000-8000-000000000005','owner','active');
 
+-- Synthetic clinical capability grants are explicitly approved by a different owner/admin.
+insert into public.organization_clinical_capabilities
+  (organization_id,user_id,professional_type,status,verification_status,verification_method,
+   requested_by,verified_by,verified_at,granted_by,granted_at)
+values
+ ('40000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000003',
+  'physician','active','verified','manual_review',
+  '30000000-0000-4000-8000-000000000003','30000000-0000-4000-8000-000000000001',now(),
+  '30000000-0000-4000-8000-000000000001',now()),
+ ('40000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000004',
+  'physician','active','verified','manual_review',
+  '30000000-0000-4000-8000-000000000004','30000000-0000-4000-8000-000000000002',now(),
+  '30000000-0000-4000-8000-000000000002',now());
+
+select set_config('test.clinician_b_capability_id',(
+  select id::text from public.organization_clinical_capabilities
+  where user_id='30000000-0000-4000-8000-000000000004' and status='active'
+),true);
+
 -- Clinician A creates a patient and receives an assignment atomically.
 set local role authenticated;
 select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000003',true);
