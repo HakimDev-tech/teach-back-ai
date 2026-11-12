@@ -56,7 +56,7 @@ Sign-up creates an Auth identity; a database trigger provisions a minimal profil
 
 ## Current interface scope
 
-The current interface includes the public entry page, sign-in/sign-up, a clinician access overview, and a responsive clinician patient directory. Authorized clinicians can create a patient record; the database atomically creates the creator's active assignment. The directory reads only rows permitted by RLS and currently displays at most the 100 most recently added assigned records.
+The current interface includes the public entry page, sign-in/sign-up, a clinician access overview, and a responsive clinician patient directory. Clinical access requires an active, unexpired, independently approved clinical-capability grant and an active patient assignment; the organization membership role alone is insufficient. Authorized clinicians can create a patient record; the database atomically creates the creator's active assignment. The directory reads only rows permitted by RLS and currently displays at most the 100 most recently added assigned records.
 
 Patient creation does not invite a patient or grant patient-portal access. Patient authentication, invitations, patient self-service, care-plan authoring, instruction approval, session preparation, clinician response review, clarification, retry, and organization administration are not yet exposed as complete UI workflows. The internal response APIs remain clinician-only.
 
