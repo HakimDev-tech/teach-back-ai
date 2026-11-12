@@ -280,7 +280,7 @@ AI is a later phase and consumes the approved domain model; it does not own it.
 
 ## 10. Additive migration and verification sequence
 
-Do not rewrite or delete the Phase A/B migrations. Implement additive migrations in this order:
+Do not rewrite or delete the Phase A/B migrations. The first additive migration is named phase_c_instruction_question_coverage and closes the publication invariant before patient access is enabled. Implement subsequent additive migrations in this order:
 
 1. Clinical capability records and authorization-helper extension, with explicit compatibility/backfill behavior.
 2. Organization invitations and patient invitation codes, plus patient access grants.
