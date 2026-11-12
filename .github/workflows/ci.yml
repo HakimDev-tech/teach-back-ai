@@ -37,7 +37,8 @@ jobs:
             exit 1
           fi
           supabase migration new "$migration_name"
-          migration_file="$(find supabase/migrations -maxdepth 1 -type f -name "*_${migration_name}.sql" -printf '%f\\n' | sort | tail -n 1)"
+          migration_path="$(find supabase/migrations -maxdepth 1 -type f -name "*_${migration_name}.sql" -print | sort | tail -n 1)"
+          migration_file="${migration_path##*/}"
           if [ -z "$migration_file" ]; then
             echo "::error::Supabase CLI did not produce the expected migration file."
             exit 1
