@@ -16,7 +16,7 @@ afterEach(() => {
 describe("apiRoute", () => {
   it("returns a successful response without changing its status or body", async () => {
     const response = await apiRoute(async () =>
-      Response.json({ data: { id: "patient-1" } }, { status: 201 }) as never,
+      Response.json({ data: { id: "patient-1" } }, { status: 201 }),
     );
 
     expect(response.status).toBe(201);
