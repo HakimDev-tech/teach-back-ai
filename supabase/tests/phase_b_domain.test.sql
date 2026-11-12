@@ -1,5 +1,5 @@
 begin;
-select plan(85);
+select plan(90);
 
 select ok(to_regclass('public.patients') is not null, 'patients table exists');
 select ok(to_regclass('public.patient_clinician_assignments') is not null, 'assignment table exists');
@@ -57,6 +57,56 @@ select set_config('test.clinician_b_capability_id',(
   select id::text from public.organization_clinical_capabilities
   where user_id='30000000-0000-4000-8000-000000000004' and status='active'
 ),true);
+
+-- A clinician role alone is not a clinical authorization.
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select lives_ok($cap$select public.revoke_clinical_capability(
+  current_setting('test.clinician_b_capability_id')::uuid,'verification re-check'
+)$cap$,
+  'admin can revoke a clinician capability for re-verification');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000004',true);
+select is((select count(*) from public.patients),0::bigint,
+  'clinician role without active verified capability cannot read patient records');
+select throws_ok(
+  $cap$select public.create_patient(
+    '40000000-0000-4000-8000-000000000001','Unverified Patient','en'
+  )$cap$,
+  '42501',null,'clinician role without active verified capability cannot create patient records');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select throws_ok(
+  $cap$select public.assign_patient_clinician(
+    '40000000-0000-4000-8000-000000000001',
+    '40000000-0000-4000-8000-000000000099',
+    '30000000-0000-4000-8000-000000000004'
+  )$cap$,
+  '23514',null,'admin cannot assign a clinician without active verified capability');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000004',true);
+select lives_ok($cap$select set_config('test.clinician_b_new_capability_id',
+  public.request_clinical_capability(
+    '40000000-0000-4000-8000-000000000001','physician'
+  )::text,true)$cap$,
+  'clinician can request independent clinical capability re-verification');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000002',true);
+select lives_ok($cap$select public.approve_clinical_capability(
+  current_setting('test.clinician_b_new_capability_id')::uuid,'manual_review'
+)$cap$,
+  'another active admin can approve the clinician re-verification');
+
+reset role;
 
 -- Clinician A creates a patient and receives an assignment atomically.
 set local role authenticated;
